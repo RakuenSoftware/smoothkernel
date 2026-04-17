@@ -1,0 +1,15 @@
+# DKMS configuration template — substitute @MODULE_NAME@,
+# @MODULE_VERSION@, @KERNEL_FLOOR_REGEX@ at install time.
+#
+# @KERNEL_FLOOR_REGEX@ should be a regex matching the minimum
+# kernel version your module supports, e.g.
+#   ^(6\.(1[8-9]|[2-9][0-9])|[7-9]\.).*    -> 6.18+
+
+PACKAGE_NAME="@MODULE_NAME@"
+PACKAGE_VERSION="@MODULE_VERSION@"
+BUILT_MODULE_NAME[0]="@MODULE_NAME@"
+DEST_MODULE_LOCATION[0]="/extra"
+AUTOINSTALL="yes"
+MAKE[0]="make KDIR=/lib/modules/${kernelver}/build"
+CLEAN="make clean"
+BUILD_EXCLUSIVE_KERNEL="@KERNEL_FLOOR_REGEX@"

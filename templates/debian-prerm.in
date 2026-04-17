@@ -1,0 +1,29 @@
+#!/bin/sh
+# Debian prerm hook for an out-of-tree module shipped via DKMS.
+# Substitute @MODULE_NAME@, @MODULE_VERSION@, @MOUNT_TYPE_GUARD@.
+# MOUNT_TYPE_GUARD is the fs name to refuse unload while mounted
+# (e.g. "smoothfs"); leave empty for modules that aren't a filesystem.
+
+set -e
+
+PACKAGE_NAME="@MODULE_NAME@"
+PACKAGE_VERSION="@MODULE_VERSION@"
+MOUNT_TYPE_GUARD="@MOUNT_TYPE_GUARD@"
+
+case "$1" in
+remove|upgrade|deconfigure)
+	if lsmod | grep -q "^${PACKAGE_NAME} "; then
+		if [ -n "$MOUNT_TYPE_GUARD" ] && \
+		   mount | grep -q " type ${MOUNT_TYPE_GUARD} "; then
+			echo "${PACKAGE_NAME}: active mounts present; not unloading" >&2
+		else
+			modprobe -r "$PACKAGE_NAME" || true
+		fi
+	fi
+	if command -v dkms >/dev/null 2>&1; then
+		dkms remove -m "$PACKAGE_NAME" -v "$PACKAGE_VERSION" --all || true
+	fi
+	;;
+esac
+
+exit 0
