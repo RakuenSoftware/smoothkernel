@@ -1,0 +1,6 @@
+# Per-developer build env — copy from examples/*.env and customize.
+build.env
+
+# Build artifacts
+build/
+out/
