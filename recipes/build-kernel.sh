@@ -55,7 +55,7 @@ cd "$SRC_DIR"
 
 echo "==> seeding .config from $CONFIG_SOURCE"
 cp "$CONFIG_SOURCE" .config
-yes "" | make olddefconfig >/dev/null
+make olddefconfig </dev/null >/dev/null
 
 if [[ "$STRIP_DEBUG_INFO" = "1" ]]; then
     echo "==> stripping debug-info bloat"
@@ -88,7 +88,7 @@ if [[ "$NET_TUNING" = "1" ]]; then
 fi
 
 scripts/config --set-str LOCALVERSION "$LOCALVERSION"
-yes "" | make olddefconfig >/dev/null
+make olddefconfig </dev/null >/dev/null
 
 echo "==> building (-j${BUILD_THREADS})"
 date
