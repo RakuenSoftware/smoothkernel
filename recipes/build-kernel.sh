@@ -124,6 +124,107 @@ if [[ "$SERVER_TUNING" = "1" ]]; then
                    --enable BLK_WBT_MQ
 fi
 
+# Appliance driver trim — drop driver families that no Smooth* product
+# (NAS or Router) ever uses on real hardware. Toggle with
+# APPLIANCE_TRIM=0 to keep the upstream/Debian driver set, e.g. when
+# bisecting a hardware-detection issue against a stock build.
+#
+# Selection method: walk the seed .config for every "=y" or "=m" symbol
+# that maps to a desktop, laptop, embedded, or legacy-protocol use case
+# we don't ship hardware for. Cascading is preferred over per-driver
+# disables — disabling DRM cascades to AMDGPU/I915/NOUVEAU/RADEON,
+# disabling MEDIA_SUPPORT cascades to V4L2/DVB/RC_CORE/LIRC, and so on.
+#
+# Net effect: substantially smaller linux-image .deb, faster builds,
+# smaller initramfs. Re-enable a family by removing its line from this
+# block, or set APPLIANCE_TRIM=0 wholesale.
+APPLIANCE_TRIM="${APPLIANCE_TRIM:-1}"
+if [[ "$APPLIANCE_TRIM" = "1" ]]; then
+    echo "==> trimming appliance-irrelevant driver families"
+
+    # GPU / display / audio — both products are headless. VGA_CONSOLE
+    # and EFI/VESA framebuffer remain so the boot console works.
+    # Dropping DRM cascades to AMDGPU/I915/NOUVEAU/RADEON/VMWGFX/...
+    # ACPI_VIDEO is the laptop brightness/hotkey driver.
+    scripts/config --disable DRM \
+                   --disable AGP \
+                   --disable ACPI_VIDEO \
+                   --disable SOUND \
+                   --disable SND
+
+    # Wireless / RF — Smooth* devices are wired-only; Router uses
+    # upstream Ethernet and SFP+. If a future SmoothROUTER variant adds
+    # an internal Wi-Fi access-point mode, drop these or flip
+    # APPLIANCE_TRIM=0. NFC is for tap-to-pair phones — not us.
+    scripts/config --disable WLAN \
+                   --disable CFG80211 \
+                   --disable MAC80211 \
+                   --disable BT \
+                   --disable NFC
+
+    # Capture / media / IR — no webcam, no DVB/ATSC tuner, no remote
+    # control receiver. MEDIA_SUPPORT cascades to V4L2 / RC_CORE / LIRC
+    # / DVB_CORE, but BATMAN_ADV (mesh) lives elsewhere.
+    scripts/config --disable MEDIA_SUPPORT
+
+    # Legacy / dead WAN and link-layer protocols.
+    scripts/config --disable HAMRADIO \
+                   --disable ISDN \
+                   --disable ATM \
+                   --disable LAPB \
+                   --disable PHONET \
+                   --disable SLIP \
+                   --disable PARPORT
+
+    # IoT / mesh networking we don't terminate.
+    scripts/config --disable BATMAN_ADV \
+                   --disable IEEE802154 \
+                   --disable 6LOWPAN
+
+    # Legacy buses — none of these have shipped on a server in years.
+    # FIREWIRE = IEEE 1394; PCMCIA = laptop card slots; MTD = raw
+    # NAND/NOR flash on embedded boards.
+    scripts/config --disable FIREWIRE \
+                   --disable PCMCIA \
+                   --disable MTD
+
+    # Input devices we'll never see on a headless box.
+    scripts/config --disable GAMEPORT \
+                   --disable INPUT_JOYSTICK \
+                   --disable INPUT_TABLET \
+                   --disable INPUT_TOUCHSCREEN
+
+    # Exotic partition tables — keep MSDOS + EFI_PARTITION (default
+    # =y, untouched). Drop Mac/Amiga/Atari/Sun.
+    scripts/config --disable MAC_PARTITION \
+                   --disable AMIGA_PARTITION \
+                   --disable ATARI_PARTITION \
+                   --disable SUN_PARTITION
+
+    # Legacy / EOL storage HBAs.
+    scripts/config --disable SCSI_AIC79XX \
+                   --disable SCSI_AIC7XXX \
+                   --disable SCSI_3W_9XXX \
+                   --disable SCSI_QLOGIC_1280 \
+                   --disable BLK_DEV_3W_XXXX_RAID
+
+    # Toy / unused filesystems. Keep XFS, EXT4, BTRFS, F2FS, OVERLAY,
+    # SQUASHFS, ISO9660, UDF, VFAT, NTFS3 (any of which may already be
+    # =y/=m in the seed and are NOT touched here).
+    scripts/config --disable MINIX_FS
+
+    # Misc. ACCESSIBILITY = BRAILLE/speech for desktop a11y. COMEDI =
+    # industrial data acquisition. STAGING = drivers still under dev.
+    # SURFACE_AGGREGATOR = Microsoft Surface SoC. INTEL_MEI_{HDCP,PXP}
+    # = DRM content protection over the management engine.
+    scripts/config --disable ACCESSIBILITY \
+                   --disable COMEDI \
+                   --disable STAGING \
+                   --disable SURFACE_AGGREGATOR \
+                   --disable INTEL_MEI_HDCP \
+                   --disable INTEL_MEI_PXP
+fi
+
 scripts/config --set-str LOCALVERSION "$LOCALVERSION"
 make olddefconfig </dev/null >/dev/null
 
