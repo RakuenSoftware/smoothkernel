@@ -125,9 +125,19 @@ date
 echo "==> collecting .debs into $OUT_DIR"
 shopt -s nullglob
 moved=()
-for f in ../linux-*_*"$LOCALVERSION"*"$KERNEL_VERSION"*_*.deb \
-         ../linux-libc-dev_${KERNEL_VERSION}*.deb; do
+# bindeb-pkg produces linux-image / linux-image-dbg / linux-headers /
+# linux-libc-dev for <UTS_RELEASE>, where UTS_RELEASE = <ver><LOCALVERSION>.
+# Match each group explicitly so future renames don't silently drop one.
+LOCAL_TAG="${LOCALVERSION#-}"  # strip leading '-' so "smoothnas-lts" anchors the glob cleanly
+for f in "../linux-image-${KERNEL_VERSION}-${LOCAL_TAG}"*"_${KERNEL_VERSION}-"*"_"*.deb \
+         "../linux-headers-${KERNEL_VERSION}-${LOCAL_TAG}"*"_${KERNEL_VERSION}-"*"_"*.deb \
+         "../linux-libc-dev_${KERNEL_VERSION}-"*"_"*.deb; do
     cp -v "$f" "$OUT_DIR/"
     moved+=("$f")
 done
+if [[ ${#moved[@]} -lt 3 ]]; then
+    echo "ERROR: expected image + headers + libc-dev .debs, got ${#moved[@]}" >&2
+    ls -la ../ | grep '\.deb$' >&2
+    exit 1
+fi
 echo "==> done. Built ${#moved[@]} .debs in $OUT_DIR"
