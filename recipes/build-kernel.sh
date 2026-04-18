@@ -89,10 +89,16 @@ if [[ "$NET_TUNING" = "1" ]]; then
     # olddefconfig. NF_FLOW_TABLE (HW-offloadable fast-path conntrack
     # for nftables flow offload) is already a module in Debian's
     # stock config; no override needed.
+    # NET_SCH_DEFAULT exposes DEFAULT_{FQ,FQ_CODEL,PFIFO_FAST,...} as a
+    # choice. Debian ships DEFAULT_FQ_CODEL=y; flip to DEFAULT_FQ so
+    # the boot-time qdisc is the one BBR is designed to pace over,
+    # without requiring the /etc/sysctl.d drop-in to take effect first.
     scripts/config --enable TCP_CONG_BBR \
                    --disable DEFAULT_CUBIC \
                    --enable DEFAULT_BBR \
                    --enable NET_SCH_FQ \
+                   --disable DEFAULT_FQ_CODEL \
+                   --enable DEFAULT_FQ \
                    --enable NET_RX_BUSY_POLL \
                    --enable TCP_MD5SIG \
                    --module TCP_CONG_DCTCP
