@@ -82,16 +82,20 @@ if [[ "$NET_TUNING" = "1" ]]; then
     # metadata ops. TCP_MD5SIG is cheap and routinely required.
     # TCP_CONG_DCTCP is a useful opt-in for LAN with ECN-capable
     # switches (selectable per-route via "ip route ... congctl dctcp").
-    # NF_CONNTRACK_FLOW_TABLE exposes a HW-offloadable fast-path
-    # conntrack helper — used by the nftables stack the appliance
-    # already ships.
+    #
+    # DEFAULT_TCP_CONG is derived from the DEFAULT_{BBR,CUBIC,...}
+    # choice — flipping the choice is how you change the runtime
+    # default; setting the string directly is overwritten by
+    # olddefconfig. NF_FLOW_TABLE (HW-offloadable fast-path conntrack
+    # for nftables flow offload) is already a module in Debian's
+    # stock config; no override needed.
     scripts/config --enable TCP_CONG_BBR \
-                   --set-str DEFAULT_TCP_CONG "bbr" \
+                   --disable DEFAULT_CUBIC \
+                   --enable DEFAULT_BBR \
                    --enable NET_SCH_FQ \
                    --enable NET_RX_BUSY_POLL \
                    --enable TCP_MD5SIG \
-                   --module TCP_CONG_DCTCP \
-                   --enable NF_CONNTRACK_FLOW_TABLE
+                   --module TCP_CONG_DCTCP
 fi
 
 # Server / appliance general tuning (not strictly network). Toggle
