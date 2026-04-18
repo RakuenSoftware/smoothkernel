@@ -80,11 +80,38 @@ if [[ "$NET_TUNING" = "1" ]]; then
     # any module load. NET_RX_BUSY_POLL enables SO_BUSY_POLL /
     # sysctl-driven busy polling for sub-ms latency on NFS/SMB
     # metadata ops. TCP_MD5SIG is cheap and routinely required.
+    # TCP_CONG_DCTCP is a useful opt-in for LAN with ECN-capable
+    # switches (selectable per-route via "ip route ... congctl dctcp").
+    # NF_CONNTRACK_FLOW_TABLE exposes a HW-offloadable fast-path
+    # conntrack helper — used by the nftables stack the appliance
+    # already ships.
     scripts/config --enable TCP_CONG_BBR \
                    --set-str DEFAULT_TCP_CONG "bbr" \
                    --enable NET_SCH_FQ \
                    --enable NET_RX_BUSY_POLL \
-                   --enable TCP_MD5SIG
+                   --enable TCP_MD5SIG \
+                   --module TCP_CONG_DCTCP \
+                   --enable NF_CONNTRACK_FLOW_TABLE
+fi
+
+# Server / appliance general tuning (not strictly network). Toggle
+# with SERVER_TUNING=0 to reproduce upstream defaults.
+SERVER_TUNING="${SERVER_TUNING:-1}"
+if [[ "$SERVER_TUNING" = "1" ]]; then
+    echo "==> applying server / appliance general tuning"
+    # PREEMPT_DYNAMIC lets operators flip preempt=voluntary|full|none
+    # via the kernel command line without a rebuild — useful for
+    # triage runs against latency regressions.
+    # RCU_NOCB_CPU enables 'rcu_nocbs=<cores>' on cmdline to isolate
+    # RCU callback work from NIC-servicing / tierd cores. The feature
+    # is opt-in at boot; compiling it in has negligible overhead.
+    # BLK_WBT_MQ enables writeback throttling on the multi-queue
+    # block layer, which real-world smooths tail latency under the
+    # NAS pattern of concurrent writers + one latency-sensitive
+    # reader (e.g. an SMB rename during a large rsync write).
+    scripts/config --enable PREEMPT_DYNAMIC \
+                   --enable RCU_NOCB_CPU \
+                   --enable BLK_WBT_MQ
 fi
 
 scripts/config --set-str LOCALVERSION "$LOCALVERSION"
