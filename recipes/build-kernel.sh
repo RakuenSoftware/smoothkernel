@@ -65,6 +65,28 @@ if [[ "$STRIP_DEBUG_INFO" = "1" ]]; then
                    --disable SYSTEM_TRUSTED_KEYS \
                    --disable SYSTEM_REVOCATION_KEYS
 fi
+
+# NAS / server network-path tuning. Debian's stock config builds
+# TCP_CONG_BBR as a module and defaults to cubic; for the Smooth*
+# appliance class we want BBR available + default, and a handful of
+# latency-sensitive network-path knobs compiled in. Toggle with
+# NET_TUNING=0 for a build that wants the upstream defaults (e.g. a
+# dev kernel that reproduces a Debian-side bug).
+NET_TUNING="${NET_TUNING:-1}"
+if [[ "$NET_TUNING" = "1" ]]; then
+    echo "==> applying NAS network-path tuning"
+    # BBR + FQ built in so the boot-time net.core.default_qdisc=fq +
+    # net.ipv4.tcp_congestion_control=bbr settings take effect before
+    # any module load. NET_RX_BUSY_POLL enables SO_BUSY_POLL /
+    # sysctl-driven busy polling for sub-ms latency on NFS/SMB
+    # metadata ops. TCP_MD5SIG is cheap and routinely required.
+    scripts/config --enable TCP_CONG_BBR \
+                   --set-str DEFAULT_TCP_CONG "bbr" \
+                   --enable NET_SCH_FQ \
+                   --enable NET_RX_BUSY_POLL \
+                   --enable TCP_MD5SIG
+fi
+
 scripts/config --set-str LOCALVERSION "$LOCALVERSION"
 yes "" | make olddefconfig >/dev/null
 
