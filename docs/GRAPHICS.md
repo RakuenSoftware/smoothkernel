@@ -57,6 +57,8 @@ Depends:
 
 NVIDIA handled separately — see below.
 
+Current Intel decode on HTPC/desktop assumes Debian's non-free section is enabled, because the preferred iHD VA-API driver lives there.
+
 ### 32-bit userspace for gaming and Wine
 
 SmoothDesktop and SmoothHTPC are first-class Steam / Proton / Wine systems, so the graphics story is not complete with amd64 packages alone.
@@ -85,7 +87,7 @@ Separate track, separate pipeline.
 
 - **Open kernel modules** (for RTX 20+, increasingly preferred) — Debian packages them; we don't need to fork.
 - **Proprietary userspace** (`nvidia-driver-*`) — Debian ships via `non-free`; we can either:
-  - (a) Tell users to enable Debian's `non-free` in their `sources.list`. Simpler; one fewer thing we maintain.
+  - (a) Rely on the desktop/HTPC bootstrap path, which already enables Debian `non-free`, and tell users to install `nvidia-driver-*` from there. Simpler; one fewer thing we maintain.
   - (b) Mirror the relevant `nvidia-driver-*` packages into our `common` suite as a convenience. More maintenance; fewer steps for users.
 
 Leaning (a) at v1 — Debian's non-free is well-maintained, and the Smooth* value-add isn't repackaging NVIDIA.
@@ -94,7 +96,7 @@ DKMS modules build against `linux-smoothkernel-headers` automatically once insta
 
 ## Intel
 
-`intel-media-va-driver-non-free` (the iHD driver) comes from Debian's non-free section. Required for current Intel GPU video decode (Arc, Battlemage, 11th-gen+ iGPUs with new codec support). Pulled by `smooth-gfx` as a recommends with a fallback to `intel-media-va-driver` (older, in main).
+`intel-media-va-driver-non-free` (the iHD driver) comes from Debian's non-free section. Required for current Intel GPU video decode (Arc, Battlemage, 11th-gen+ iGPUs with new codec support). HTPC and desktop enable Debian non-free at bootstrap so `smooth-gfx` can pull it as the preferred driver, with `intel-media-va-driver` (older, in main) retained as a fallback.
 
 ## Cadence
 

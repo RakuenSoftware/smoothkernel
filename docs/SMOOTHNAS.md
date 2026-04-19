@@ -25,6 +25,7 @@ Depends:
  linux-headers-smoothkernel,
  linux-firmware-smooth,
  smooth-base,
+ smooth-secureboot,
  smoothnas-tuning,
  tierd,
  tierd-ui,

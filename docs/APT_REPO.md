@@ -44,10 +44,12 @@ The Smooth* repo stays `main`-only, but some flavors require Debian components b
 
 - All flavors enable Debian `main` and `non-free-firmware`
 - `smoothdesktop` additionally enables Debian `contrib` and `non-free` before the flavor meta-package is installed
-- `smoothhtpc` stays on `main` + `non-free-firmware` by default; users who install NVIDIA drivers opt into Debian `non-free`
+- `smoothhtpc` additionally enables Debian `contrib` and `non-free` before the flavor meta-package is installed
 - `smoothnas` and `smoothrouter` do not enable Debian `contrib` / `non-free` by default
 
-This matters because packages such as `steam-installer`, `nvidia-driver-*`, and `ttf-mscorefonts-installer` are not satisfiable from plain Debian `main`.
+Desktop and HTPC also enable `i386` before the flavor meta-package is installed so Steam / Proton / Wine-class 32-bit userspace can be resolved against the Rakuen Mesa stack.
+
+This matters because packages such as `steam-installer`, `nvidia-driver-*`, `intel-media-va-driver-non-free`, and `ttf-mscorefonts-installer` are not satisfiable from plain Debian `main`.
 
 ## Architecture: amd64-only at v1
 
@@ -115,6 +117,8 @@ Out of scope until we ship to real users.
 ## Out-of-tree modules and DKMS
 
 DKMS modules (`zfs-dkms`, `smoothfs`-via-DKMS, NVIDIA if we mirror it) build against `linux-smoothkernel-headers` on install. They live in `common` so every flavor can pull them; flavor meta-packages declare Depends on only the modules they actually need.
+
+Every flavor meta-package also depends on `smooth-secureboot`, which owns the per-host Secure Boot / MOK bootstrap and DKMS-signing hooks for the shared-kernel model.
 
 - `smoothnas` depends on `zfs-dkms`, `smoothfs`
 - `smoothrouter` depends on neither

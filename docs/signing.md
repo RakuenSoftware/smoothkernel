@@ -39,19 +39,20 @@ The per-host key never leaves the machine. If one host is compromised, the blast
 - DKMS signing hooks
 - status / diagnostic commands for checking signer state
 
-Every flavor can depend on it without changing the one-kernel model.
+In v1 every flavor meta-package depends on it, so Secure-Boot-capable installs get the same signing/bootstrap contract without per-flavor drift.
 
 ## Boot and enrollment flow
 
 Initial install on Secure-Boot-capable systems:
 
-1. Installer lays down the OS and installs `smooth-secureboot`
+1. Installer lays down the OS, installs the flavor meta-package, and therefore installs `smooth-secureboot`
 2. `smooth-secureboot` generates the per-host MOK keypair
 3. Installer queues MOK enrollment with `mokutil --import`
 4. First reboot enters the standard MOK enrollment screen
 5. Subsequent DKMS rebuilds sign modules automatically with the enrolled key
 
 Headless flavors still use the same mechanism; the console flow is part of the appliance bring-up checklist.
+On systems not using Secure Boot, `smooth-secureboot` remains installed but enrollment and DKMS-signing enforcement can no-op cleanly.
 
 ## Kernel configuration contract
 
