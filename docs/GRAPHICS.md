@@ -57,6 +57,19 @@ Depends:
 
 NVIDIA handled separately — see below.
 
+### 32-bit userspace for gaming and Wine
+
+SmoothDesktop and SmoothHTPC are first-class Steam / Proton / Wine systems, so the graphics story is not complete with amd64 packages alone.
+
+When those flavors enable `i386`, `smooth-workstation` also pulls the matching 32-bit graphics runtime alongside the native one:
+
+- `libgl1-mesa-dri:i386`
+- `libglx-mesa0:i386`
+- `libgbm1:i386`
+- `mesa-vulkan-drivers:i386`
+
+That keeps the 32-bit OpenGL / Vulkan userspace aligned with the Rakuen-built Mesa stack rather than silently falling back to Debian's older i386 graphics packages.
+
 ## LLVM dependency
 
 Mesa's RADV, RadeonSI, and llvmpipe link against LLVM. Mesa's LLVM version requirement bumps with each major Mesa release. Our posture:
@@ -81,7 +94,7 @@ DKMS modules build against `linux-smoothkernel-headers` automatically once insta
 
 ## Intel
 
-`intel-media-va-driver-non-free` (the iHD driver) is in Debian's `non-free-firmware`. Required for current Intel GPU video decode (Arc, Battlemage, 11th-gen+ iGPUs with new codec support). Pulled by `smooth-gfx` as a recommends with a fallback to `intel-media-va-driver` (older, in main).
+`intel-media-va-driver-non-free` (the iHD driver) comes from Debian's non-free section. Required for current Intel GPU video decode (Arc, Battlemage, 11th-gen+ iGPUs with new codec support). Pulled by `smooth-gfx` as a recommends with a fallback to `intel-media-va-driver` (older, in main).
 
 ## Cadence
 
