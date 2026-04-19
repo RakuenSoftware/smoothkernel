@@ -55,6 +55,7 @@ From `common`: `linux-smoothkernel`, `smooth-base`, `smooth-gfx` (via `smooth-wo
 ```
 Depends:
  smooth-workstation,
+ smooth-secureboot,
  smoothhtpc-tuning,
  smoothtv,
  cage,
@@ -68,7 +69,8 @@ Depends:
  bluez,
  networkmanager,
  openssh-server,
- gamescope
+ gamescope,
+ steam-installer | steam-launcher
 Recommends:
  retroarch,
  mangohud,
@@ -76,6 +78,8 @@ Recommends:
 ```
 
 Explicitly NOT pulled: any DE, browser, office suite, file manager, generic desktop apps. `smoothhtpc` is a single-purpose appliance.
+
+Because `apt` resolves dependencies before package `postinst` runs, the HTPC bootstrap path enables Debian `contrib non-free non-free-firmware` and `i386` before `apt install smoothhtpc`. That makes Steam, current Intel decode drivers, and the 32-bit graphics runtime available on first boot instead of as a post-install manual step.
 
 ## smoothtv — the shell
 

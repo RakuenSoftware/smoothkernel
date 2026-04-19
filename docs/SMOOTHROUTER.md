@@ -48,6 +48,7 @@ Depends:
  linux-image-smoothkernel,
  linux-firmware-smooth,
  smooth-base,
+ smooth-secureboot,
  smoothrouter-tuning,
  smoothrouterd,
  smoothrouter-ui,

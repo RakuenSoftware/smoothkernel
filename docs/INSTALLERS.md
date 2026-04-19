@@ -98,7 +98,7 @@ Until this lands, the existing `SmoothNAS/iso/` continues to work and other flav
 - Single-disk common case (NUC, mini-PC). Full-disk encryption optional.
 - Autologin to a locked-down user account whose session is the `smoothhtpc-session.service` that runs the wlroots compositor + `smoothtv`.
 - HDMI-CEC and IR receiver detection at first boot.
-- Debian `non-free-firmware` enabled by default; Debian `non-free` stays opt-in for NVIDIA systems.
+- Before `apt` installs `smoothhtpc`, the installer enables Debian `contrib non-free non-free-firmware` and `i386` so Steam, current Intel decode drivers, and the 32-bit graphics runtime are resolvable on first boot.
 
 ### SmoothDesktop
 
@@ -122,7 +122,7 @@ The installer is responsible only for:
 - Rakuen apt keyring installed
 - `/etc/apt/sources.list.d/smooth.list` with `common` + flavor suite
 - Any flavor-specific Debian components or third-party apt sources required before the flavor meta-package can be resolved
-- The flavor meta-package installed (which pulls kernel, tuning, daemons, UI, etc.)
+- The flavor meta-package installed (which pulls kernel, tuning, daemons, UI, shared packages such as `smooth-secureboot`, etc.)
 
 After first boot, the system is an ordinary Debian box with our apt repo enabled. All subsequent lifecycle is standard Debian package management.
 
