@@ -112,7 +112,7 @@ What it orchestrates:
 - `kea-dhcp-server` config generation (writes Kea's JSON config, restarts service)
 - `unbound` config (writes `/etc/unbound/unbound.conf.d/smoothrouter.conf`)
 - `wireguard` interface lifecycle (`wg-quick up/down`, config file management)
-- Interface configuration (via `systemd-networkd` or `NetworkManager` — pick one; leaning systemd-networkd for less moving parts on a router)
+- Interface configuration via `systemd-networkd` — declarative config, no desktop-oriented abstractions, fewer moving parts on a router
 
 What it does not do:
 
@@ -167,6 +167,5 @@ No GPU requirements. No audio requirements.
 
 ## Open questions
 
-- **systemd-networkd vs NetworkManager** for interface management. Leaning systemd-networkd for declarative config and fewer moving parts. NM's only appeal is parity with HTPC/desktop, which doesn't matter on a router.
 - **VRF for tenant isolation.** Worth designing if we expect multi-tenant homelab use cases; overkill for single-site. Defer.
 - **Mesh / multi-WAN failover.** Common enough to want, complex enough to not want in v1. Plan for v2.

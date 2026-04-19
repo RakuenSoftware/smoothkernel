@@ -37,7 +37,7 @@ smoothkernel/
 │   ├── SMOOTHHTPC.md              HTPC flavor + smoothtv shell spec
 │   ├── SMOOTHDESKTOP.md           Desktop flavor + Windows compat spec
 │   ├── bumping-kernel.md          Kernel-bump runbook
-│   └── signing.md                 Module signing / MOK enrollment (placeholder)
+│   └── signing.md                 Secure Boot + module-signing model
 └── examples/
     └── smooth.env                 Sample env file consumed by the recipes
 ```
@@ -55,7 +55,7 @@ smoothkernel/
 
 - Per-flavor `.config` variants — there aren't any. One canonical config; flavor differences live in userspace (udev/sysctl/tuned) via per-flavor `-tuning` packages.
 - Out-of-tree module *sources* — per-OS (e.g. `smoothfs` source lives in SmoothNAS).
-- Signed-module key custody — per-deployment, never in git (see [`docs/signing.md`](docs/signing.md)).
+- Module-signing trust model and key custody policy — defined in [`docs/signing.md`](docs/signing.md); no private keys live in git.
 - Per-OS CI plumbing — each consuming repo owns its test pipeline.
 
 ## Quick start

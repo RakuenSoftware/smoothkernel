@@ -1,6 +1,6 @@
 # Installer framework
 
-Each Smooth* flavor ships a bootable ISO. They share a framework (`smooth-installer`) extracted from the existing `SmoothNAS/iso/` work; each flavor contributes only its preseed answers, post-install hooks, and meta-package selection.
+Each Smooth* flavor ships a bootable ISO. They share a framework (`smooth-installer`) extracted from the existing `SmoothNAS/iso/` work; each flavor contributes only its preseed answers, bootstrap hooks, and meta-package selection.
 
 ## Why a shared framework
 
@@ -9,11 +9,11 @@ The four flavors share:
 - Debian base (trixie)
 - Partitioning tooling (LVM, ZFS-on-root for NAS; ext4/btrfs for others)
 - Rakuen apt repo setup (keyring install, sources.list for flavor suite + `common`)
-- Network configuration (NetworkManager for HTPC/desktop; systemd-networkd or NM for router/NAS)
+- Network configuration (NetworkManager for HTPC/desktop; systemd-networkd for router)
 - Kernel install (`linux-smoothkernel`)
 - Branding (GRUB theme, Plymouth splash)
 
-Building four independent installers would duplicate all of that. Extracting it into `smooth-installer` means each flavor ISO is thin: a preseed file, a post-install hook script, and a meta-package name.
+Building four independent installers would duplicate all of that. Extracting it into `smooth-installer` means each flavor ISO is thin: a preseed file, a bootstrap hook script, and a meta-package name.
 
 ## Shape
 
@@ -98,12 +98,14 @@ Until this lands, the existing `SmoothNAS/iso/` continues to work and other flav
 - Single-disk common case (NUC, mini-PC). Full-disk encryption optional.
 - Autologin to a locked-down user account whose session is the `smoothhtpc-session.service` that runs the wlroots compositor + `smoothtv`.
 - HDMI-CEC and IR receiver detection at first boot.
+- Debian `non-free-firmware` enabled by default; Debian `non-free` stays opt-in for NVIDIA systems.
 
 ### SmoothDesktop
 
 - Regular desktop partitioning: LVM on root with encrypted swap (LUKS optional at install).
 - User creation triggers Plasma first-run wizard on first login.
 - Flathub preconfigured; no apps auto-installed beyond what the `smoothdesktop` meta pulls.
+- Before `apt` installs `smoothdesktop`, the installer enables Debian `contrib non-free non-free-firmware`, enables `i386`, and adds the WineHQ source/key so `steam-installer` and `winehq-stable` are resolvable during the initial install.
 
 ## Update model (post-install)
 
@@ -119,9 +121,12 @@ The installer is responsible only for:
 - Correct Debian base with `non-free-firmware` enabled
 - Rakuen apt keyring installed
 - `/etc/apt/sources.list.d/smooth.list` with `common` + flavor suite
+- Any flavor-specific Debian components or third-party apt sources required before the flavor meta-package can be resolved
 - The flavor meta-package installed (which pulls kernel, tuning, daemons, UI, etc.)
 
 After first boot, the system is an ordinary Debian box with our apt repo enabled. All subsequent lifecycle is standard Debian package management.
+
+Layering a flavor onto an existing Debian install follows the same rule: run the flavor bootstrap helper first, then install the flavor meta-package. The bootstrap helper exists to perform any pre-`apt install <flavor-meta>` work that cannot be deferred to package `postinst`.
 
 ## Non-goals for v1
 

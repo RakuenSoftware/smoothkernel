@@ -76,8 +76,8 @@ Not preemptive. Operational pain is the forcing function.
 
 Today, the soak strategy is:
 
-1. Build + sign locally (or in CI).
-2. Install on a test box (the author's test hardware).
+1. Produce a CI-signed candidate build.
+2. Install on the minimum validation matrix: one NAS target, one router target, one HTPC target, one desktop target.
 3. Boot, run flavor-specific smoke tests (mount a ZFS pool for NAS; pass traffic for router; run Kodi video decode for HTPC; boot into Plasma and launch Steam for desktop).
 4. If clean, commit the .deb to apt-repo.
 

@@ -77,7 +77,7 @@ One canonical `.config`, versioned in smoothkernel. See [`kernel-config.md`](ker
 - `CONFIG_PREEMPT=y`
 - `CONFIG_HZ=1000`
 - `CONFIG_SCHED_BORE=y`, BORE selected as default
-- `CONFIG_MODULE_SIG_FORCE=n` for now (see [`signing.md`](signing.md))
+- `CONFIG_MODULE_SIG_FORCE=y`, with packaged modules signed in release builds and DKMS modules signed on-host (see [`signing.md`](signing.md))
 - `CONFIG_DEBUG_INFO_BTF=n`, debug info stripped (matches `build-kernel.sh` STRIP_DEBUG_INFO=1 default)
 - APPLIANCE_TRIM profile-equivalent: drop driver families no Smooth* flavor ships (mainframe, niche industrial, etc.) — carried through from `build-kernel.sh`
 
@@ -106,8 +106,12 @@ apply appliance-trim (net-tuning, server-tuning — already in build-kernel.sh)
     ↓
 make bindeb-pkg
     ↓
+release build signs packaged modules
+    ↓
 linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb in out/
 ```
+
+DKMS modules are not signed here; they are signed on the target system by `smooth-secureboot` after each DKMS rebuild.
 
 The existing `build.env`-driven shape continues to work; it just grows two new variables — `CACHYOS_PATCH_TAG` and `NOBARA_PATCH_REF` — that point at the patch sources for this kernel version. `LOCALVERSION=-smooth` replaces `-smoothnas-lts` (etc.).
 
@@ -150,4 +154,4 @@ See [`bumping-kernel.md`](bumping-kernel.md) for the updated bump runbook.
 
 - **Canonical `.config` custody** — inside smoothkernel/ or a sibling repo? Leaning inside smoothkernel to keep it colocated with the recipes that consume it.
 - **Patch vendoring vs git submodule** — CachyOS patches could be vendored into `patches/cachyos-<ver>/` per release (build-time stable, git-size cost) or pulled via submodule (repo stays small, needs network during build). Leaning vendor for CI simplicity and reproducibility.
-- **Kernel signing** — tracked in [`signing.md`](signing.md). Phase 0.10 blocker for appliance shipping.
+- **Release-key scope** — one Smooth* module-signing key keeps the one-kernel pipeline simple, but per-product keys reduce blast radius.
