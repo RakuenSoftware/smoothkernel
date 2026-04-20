@@ -35,30 +35,32 @@ The payoff: one rebase per upstream bump instead of four, one .config to maintai
 
 ## Patch sources
 
-### Primary: CachyOS
+### Base lane: pristine kernel.org + vendored downstream patches
 
-`github.com/CachyOS/kernel-patches` maintains a clean, versioned patch series per kernel point release. Designed for downstream reuse — XanMod, Liquorix, and Smooth* all consume from it.
+SmoothKernel builds from a pristine kernel.org tarball. Downstream scheduler and kernel adjustments are then applied from vendored patch lanes committed in-tree.
 
-The series we apply (see [`kernel-config.md`](kernel-config.md) for toggles):
+For the current `6.19.12` line, the base lane is derived from CachyOS's scheduler work but intentionally uses `sched/0001-bore.patch` rather than `0001-bore-cachy.patch`. `bore-cachy` expects additional Cachy scheduler deltas that are not present in a pristine kernel.org tree; `0001-bore.patch` applies cleanly and gives us the BORE default without inheriting hidden source deltas.
+
+The base lane we currently carry (see [`kernel-config.md`](kernel-config.md) for toggles):
 
 - **BORE scheduler** — EEVDF-based burst-aware scheduler. Default.
-- **BBRv3** — TCP congestion control; strictly better for NAS/router/desktop/HTPC (all of whom push or pull bytes).
-- **MM/MGLRU tuning** — better page-cache and THP behavior; benefits NAS page cache and router conntrack tables.
-- **bcachefs + btrfs improvements** — NAS storage win.
-- **zstd compression levels** — btrfs compression ratios; initramfs/kernel compression.
-- **AMD P-State, Intel thread director tweaks, timer subsystem fixes** — modern-CPU correctness/performance.
-- **sched-ext** — compiled in, not default. Advanced-user escape hatch.
-- **Wine/Proton support** (NTSYNC, fsync, futex2) — desktop win; futex2 is a better primitive that any multi-threaded daemon (Samba, Unbound) benefits from even if they don't opt in explicitly.
 
 ### Secondary: Nobara cherry-picks
 
 Nobara's patchset is entangled with Fedora build scripts, so we don't consume the series. But a few HID/peripheral bits are worth applying:
 
-- **OpenRGB kernel patches** — required for OpenRGB userspace to work.
-- **Steam Controller / 8BitDo / DualSense wireless quirks** — beyond what upstream `hid-*` covers.
-- **Specific wireless firmware handoff fixes** — case-by-case.
+- **USB interrupt-interval override** — lets specific wired controllers opt into higher poll rates.
+- **Logitech G923 PlayStation wheel support** — adds the missing HID ID binding.
+- **`xpadneo` Bluetooth Xbox controller integration** — covers Xbox One S/X, Series X|S, Elite, and related 8BitDo Bluetooth mappings better than the generic path.
 
 All of these are driver-level patches. On a headless NAS or router, the driver never loads because the hardware isn't present — zero runtime cost.
+
+### Tertiary: post-Nobara carry patches
+
+Some kernel lines need a small number of additional patches after the Nobara lane. These live in `patches/post-nobara-<kernel-version>/` and are applied last so their provenance and rebasing burden stay explicit.
+
+For `6.19.12`, this lane carries the rebased DRM / gamescope async-flip fixups
+that were not clean “drop-in” Nobara picks.
 
 ### Explicitly not applied
 
@@ -79,22 +81,24 @@ One canonical `.config`, versioned in smoothkernel. See [`kernel-config.md`](ker
 - `CONFIG_SCHED_BORE=y`, BORE selected as default
 - `CONFIG_MODULE_SIG_FORCE=n` for now (see [`signing.md`](signing.md))
 - `CONFIG_DEBUG_INFO_BTF=n`, debug info stripped (matches `build-kernel.sh` STRIP_DEBUG_INFO=1 default)
-- APPLIANCE_TRIM profile-equivalent: drop driver families no Smooth* flavor ships (mainframe, niche industrial, etc.) — carried through from `build-kernel.sh`
+- APPLIANCE_TRIM profile-equivalent: drop only cross-flavor-irrelevant legacy / industrial families. It must not remove DRM, audio, media, wifi, or input support needed by HTPC / Desktop.
 
 Filesystems built in: ext4, xfs, btrfs, bcachefs. ZFS stays DKMS (CDDL/GPL).
 
 ## Build flow
 
-Starting state: `recipes/build-kernel.sh` fetches a kernel.org tarball, seeds a `.config`, runs `bindeb-pkg`. Under the one-kernel model this is extended with a patch-apply step:
+Starting state: `recipes/build-kernel.sh` fetches a kernel.org tarball, seeds a `.config`, runs `bindeb-pkg`. Under the one-kernel model this is extended with an ordered patch-apply step:
 
 ```
 kernel.org tarball
     ↓
 extract + verify sha256
     ↓
-apply CachyOS patch series (per-kernel-version)
+apply base lane from patches/cachyos-<kernel-version>
     ↓
 apply Nobara HID cherry-picks
+    ↓
+apply patches/post-nobara-<kernel-version>
     ↓
 seed canonical .config
     ↓
@@ -109,18 +113,24 @@ make bindeb-pkg
 linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb in out/
 ```
 
-The existing `build.env`-driven shape continues to work; it just grows two new variables — `CACHYOS_PATCH_TAG` and `NOBARA_PATCH_REF` — that point at the patch sources for this kernel version. `LOCALVERSION=-smooth` replaces `-smoothnas-lts` (etc.).
+The existing `build.env`-driven shape continues to work, but the patch inputs are now lane names rather than remote refs:
+
+- `CACHYOS_PATCHSET=cachyos-<kernel-version>`
+- `NOBARA_PATCHSET=nobara-picks`
+- `POST_NOBARA_PATCHSET=post-nobara-<kernel-version>`
+
+`LOCALVERSION=-smooth` replaces `-smoothnas-lts` (etc.).
 
 ## Rebase cadence
 
-Target: track each kernel point release (`.1`, `.2`, ...) as CachyOS publishes the corresponding patch series. In practice that's every 1–2 weeks.
+Target: track each kernel point release (`.1`, `.2`, ...) as upstream stable and the required downstream patch lanes are ready.
 
-When CachyOS lags a point release:
+When a new point release arrives:
 
-- **Small lag (< 1 week)**: wait.
-- **Larger lag**: skip that point release. We don't carry CachyOS patches ourselves — the maintenance surface is too wide. Document the skip in the PR that lands the next version.
-
-When CachyOS skips a release entirely: we skip too.
+- Refresh the base lane from the relevant downstream source material.
+- Rebase or refresh any Nobara picks that still apply.
+- Rebase or refresh the post-Nobara carry patches.
+- Run `make kernel-config-update`, then `make kernel zfs`.
 
 Major version bumps (e.g. 6.x → 7.0) follow the conservative rule from [`bumping-kernel.md`](bumping-kernel.md): wait until `.1` minimum before shipping to users.
 
@@ -140,14 +150,13 @@ The existing smoothkernel harness (recipes/, templates/, Makefile) remains the r
 
 - Canonical `.config` becomes part of smoothkernel (or a sibling `smoothkernel-config` repo), not per-flavor
 - `LOCALVERSION` convention collapses to `-smooth`
-- Add a patch-apply step between extract and config-seed
-- `build.env` grows patch-source variables
+- Add an ordered patch-lane step between extract and config-seed
+- `build.env` grows patchset variables
 - `examples/smoothnas.env` becomes `examples/smooth.env` (or similar) — just one
 
 See [`bumping-kernel.md`](bumping-kernel.md) for the updated bump runbook.
 
 ## Open questions
 
-- **Canonical `.config` custody** — inside smoothkernel/ or a sibling repo? Leaning inside smoothkernel to keep it colocated with the recipes that consume it.
-- **Patch vendoring vs git submodule** — CachyOS patches could be vendored into `patches/cachyos-<ver>/` per release (build-time stable, git-size cost) or pulled via submodule (repo stays small, needs network during build). Leaning vendor for CI simplicity and reproducibility.
+- **Exact downstream provenance cadence** — how often we refresh the base lane from CachyOS/Nobara versus carrying local rebases longer-term.
 - **Kernel signing** — tracked in [`signing.md`](signing.md). Phase 0.10 blocker for appliance shipping.

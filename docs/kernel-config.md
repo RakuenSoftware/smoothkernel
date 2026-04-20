@@ -12,10 +12,11 @@ smoothkernel/
 │   ├── smooth-amd64.config          The canonical config, current kernel line
 │   └── <kernel-version>/            Archived configs from prior kernel bumps
 ├── patches/
-│   ├── cachyos-<kernel-version>/    Vendored CachyOS patch series
-│   └── nobara-picks/                Cherry-picked Nobara HID patches
+│   ├── cachyos-<kernel-version>/    Vendored base lane (`0001-bore.patch` on pristine kernel.org today)
+│   ├── nobara-picks/                Cherry-picked Nobara HID patches
+│   └── post-nobara-<kernel-version>/ Extra carry patches applied after Nobara
 └── recipes/
-    └── build-kernel.sh               Consumes configs/ + patches/ automatically
+    └── build-kernel.sh              Consumes configs/ + ordered patch lanes automatically
 ```
 
 ## Invariants
@@ -26,7 +27,7 @@ The following settings are load-bearing across every flavor. Changing one has cr
 |---|---|---|
 | `CONFIG_PREEMPT` | `y` | Full preemption; BORE makes the server-side cost negligible |
 | `CONFIG_HZ` | `1000` | UI/game responsiveness; negligible server impact on modern hardware |
-| `CONFIG_SCHED_BORE` | `y` | BORE scheduler (patched by CachyOS); default `y` |
+| `CONFIG_SCHED_BORE` | `y` | BORE scheduler enabled by the vendored base lane; default `y` |
 | `CONFIG_SCHED_EXT` | `m` | sched-ext available as a module; not default, escape hatch |
 | Microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
 | `CONFIG_MODULE_SIG_FORCE` | `n` | See [`signing.md`](signing.md); Phase 0.10 blocker |
@@ -64,11 +65,10 @@ Built in: the handful of drivers needed to boot every supported platform. Everyt
 
 ## What we drop
 
-The existing `build-kernel.sh` has an APPLIANCE_TRIM profile that disables driver families no Smooth* flavor ships. That stays:
+The existing `build-kernel.sh` has an APPLIANCE_TRIM profile, but it is scoped to hardware families no Smooth* flavor is expected to rely on. It must not disable HTPC / Desktop basics like DRM, audio, media, wifi, or controller input. The trim list stays narrow:
 
 - Mainframe / s390 / IBM Power drivers — `n`
 - Niche industrial buses (CAN, I2C multiplexers for industrial) — `n`
-- Sound-specific old hardware (some ISA-era sound) — `n`
 - Exotic network devices (InfiniBand in some configs) — `n`, revisit if a user case emerges
 - Obscure filesystems (reiserfs [removed upstream], hfs*, ubifs) — `n`
 
@@ -101,9 +101,9 @@ Adding a row is a strong signal to reconsider whether the one-kernel model is st
 
 When a kernel bump introduces new config symbols (common on major bumps):
 
-1. `make olddefconfig` handles the mechanical merge — it keeps our answers and defaults new options.
+1. `make kernel-config-update` refreshes the patched tree, runs `olddefconfig`, reapplies the SmoothKernel profile, and writes the resulting config back into `configs/`.
 2. Review the resulting diff. Sometimes a new option defaults to `y` and bloats the image; sometimes to `n` and disables something we want. Check the diff manually.
-3. Commit the updated `configs/smooth-amd64.config` as part of the kernel-bump PR.
+3. Commit the updated `configs/smooth-amd64.config` and `configs/<kernel-version>/smooth-amd64.config` as part of the kernel-bump PR.
 
 ## Out-of-tree modules
 

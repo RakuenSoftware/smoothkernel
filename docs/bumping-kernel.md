@@ -6,9 +6,9 @@ One kernel across all four flavors, so one bump is a single coordinated edit —
 
 ## When to bump
 
-Bump when the *latest stable kernel that the must-have DKMS set supports AND CachyOS has published a patch series for* moves forward.
+Bump when the *latest stable kernel that the must-have DKMS set supports AND our vendored patch lanes are ready for* moves forward.
 
-For Smooth* the must-have DKMS set is OpenZFS (required by SmoothNAS). Rule: **latest stable kernel ≤ OpenZFS `Linux-Maximum` AND covered by a CachyOS patch-series release**.
+For Smooth* the must-have DKMS set is OpenZFS (required by SmoothNAS). Rule: **latest stable kernel ≤ OpenZFS `Linux-Maximum` AND our vendored patch lanes are ready for that kernel**.
 
 Check OpenZFS:
 
@@ -18,14 +18,13 @@ Linux-Maximum: 6.19
 Linux-Minimum: 4.18
 ```
 
-Check CachyOS:
+Check your downstream sources:
 
 ```
-$ curl -fsSL https://api.github.com/repos/CachyOS/kernel-patches/tags \
-  | jq -r '.[] | .name' | head -20
+$ git log -- patches/cachyos-* patches/nobara-picks patches/post-nobara-* | head
 ```
 
-If CachyOS hasn't tagged a series for your target kernel yet, wait. We don't carry the patch series ourselves.
+If the downstream patch material for your target kernel is not ready yet, wait or do the rebase work first. SmoothKernel vendors the exact lane it builds.
 
 Always pick a stable point release (`x.y.z`), never `-rc` or `-next`.
 
@@ -42,26 +41,28 @@ Cross-reference:
 Update `build.env`:
 
 ```sh
-KERNEL_VERSION=6.19.10
+KERNEL_VERSION=6.19.12
 LOCALVERSION=-smooth                # never changes under the one-kernel model
-CACHYOS_PATCH_TAG=6.19-main         # or whatever CachyOS tags it
-NOBARA_PATCH_REF=<commit-sha>       # Nobara HID/OpenRGB cherry-picks, pinned SHA
+CACHYOS_PATCHSET=cachyos-6.19.12
+NOBARA_PATCHSET=nobara-picks
+POST_NOBARA_PATCHSET=post-nobara-6.19.12
 ZFS_VERSION=2.4.1                   # bump if pairing requires it
 ```
 
-### 2. Vendor the CachyOS patch series
+### 2. Vendor the patch lanes
 
-Pull the CachyOS patches into `patches/cachyos-<KERNEL_VERSION>/` and commit:
+Refresh the ordered patch lanes and commit them:
 
 ```sh
-git clone --branch "$CACHYOS_PATCH_TAG" --depth 1 \
-  https://github.com/CachyOS/kernel-patches.git /tmp/cachyos-patches
-cp -r /tmp/cachyos-patches/patches/<version>/* patches/cachyos-$KERNEL_VERSION/
-git add patches/cachyos-$KERNEL_VERSION/
-git commit -m "patches: vendor CachyOS $CACHYOS_PATCH_TAG for $KERNEL_VERSION"
+mkdir -p patches/cachyos-$KERNEL_VERSION patches/post-nobara-$KERNEL_VERSION
+# copy or regenerate the base lane, starting with the pristine-kernel-safe BORE patch
+# refresh any Nobara picks in patches/nobara-picks/
+# copy or regenerate any post-Nobara carry patches
+git add patches/cachyos-$KERNEL_VERSION patches/nobara-picks patches/post-nobara-$KERNEL_VERSION
+git commit -m "patches: refresh kernel lanes for $KERNEL_VERSION"
 ```
 
-Vendoring (rather than submoduling) keeps builds reproducible and CI-offline-safe.
+Vendoring keeps builds reproducible and CI-offline-safe. The current pristine-kernel base lane uses `0001-bore.patch`, not `0001-bore-cachy.patch`.
 
 ### 3. Update the canonical config
 
@@ -69,9 +70,7 @@ Vendoring (rather than submoduling) keeps builds reproducible and CI-offline-saf
 make kernel-config-update     # runs `make olddefconfig` against the new kernel
 ```
 
-Review the diff in `configs/smooth-amd64.config`. New `CONFIG_*` symbols default to the kernel's preference; check that defaults don't regress the invariants in [`kernel-config.md`](kernel-config.md) (PREEMPT=y, HZ=1000, SCHED_BORE=y, etc.).
-
-Commit the updated config in the same PR as the patch vendor.
+Review the diff in `configs/smooth-amd64.config`. New `CONFIG_*` symbols default to the kernel's preference; check that defaults don't regress the invariants in [`kernel-config.md`](kernel-config.md) (PREEMPT=y, HZ=1000, SCHED_BORE=y, etc.). `make kernel-config-update` also refreshes `configs/<kernel-version>/smooth-amd64.config`.
 
 ### 4. Build and verify
 
@@ -136,20 +135,20 @@ Module signing is a Phase 0.10 blocker for appliance shipping. Currently unsigne
 - **Major bumps (`6.x → 7.0`)** historically have more API churn and surface more shim work. Wait for `7.1` minimum before shipping to users.
 - **Point bumps within an LTS** (`6.18.22 → 6.18.30`) almost never break out-of-tree modules. Fast.
 - **Cross-line bumps** (`6.18 → 6.19`) often involve real API changes. Plan for shim work in any DKMS consumer.
-- **CachyOS lag**: if CachyOS hasn't shipped the patch series for your target kernel, wait. We don't carry patches ourselves.
+- **Patch-lane lag**: if the base lane, Nobara picks, or post-Nobara carry patches are not ready for your target kernel, wait or schedule the rebase work.
 - **OpenZFS lag**: typically 1–3 months behind mainline stable. Same "wait" rule if NAS is in-scope.
 
-## When CachyOS skips a kernel version
+## When a patch lane skips a kernel version
 
-Sometimes CachyOS skips a point release (e.g. 6.19.7 → 6.19.9, no 6.19.8 series). We skip too — there's no partial-patch-series option. Document the skip in the bump PR's changelog:
+Sometimes the downstream material you are following skips a point release, or a carry patch only rebases cleanly on the next one. In that case we can skip that version too. Document the skip in the bump PR's changelog:
 
 ```
-bump kernel: 6.19.6 → 6.19.9 (skipping .7 and .8; CachyOS did not publish series)
+bump kernel: 6.19.6 → 6.19.9 (skipping .7 and .8; downstream patch lanes were not ready)
 ```
 
 ## When a major kernel bump requires patch-series rework
 
-Major version bumps (6 → 7) sometimes require updated patch series from CachyOS that don't arrive at `x.0` but at `x.1` or later. The rule is unchanged: wait. The conservative `x.1` minimum for shipping to users gives CachyOS time to stabilize its patches against the new kernel line too.
+Major version bumps (6 → 7) often require real rebase work across the base lane, Nobara picks, and any post-Nobara carry patches. The rule is unchanged: wait. The conservative `x.1` minimum for shipping to users gives downstream patch material time to stabilize against the new kernel line too.
 
 ## Single-flavor rollback
 
