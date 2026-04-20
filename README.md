@@ -1,6 +1,8 @@
 # smoothkernel
 
-Kernel build harness and canonical `.config` for the Smooth* family of Debian-based appliance OSes (SmoothNAS, SmoothRouter, SmoothHTPC, SmoothDesktop). Produces **one** `linux-smoothkernel` .deb set installed identically on every flavor.
+Kernel build harness and architecture docs for the Smooth* family of Debian-based appliance OSes (SmoothNAS, SmoothRouter, SmoothHTPC, SmoothDesktop).
+
+The current harness builds from a caller-supplied seed `.config` via `CONFIG_SOURCE`. The one-kernel documentation in this repo describes the intended shared-kernel model, but the committed `configs/` tree and vendored patch flow described in some docs are not wired into this checkout yet.
 
 For the architectural rationale — why one kernel across four flavors, why CachyOS patches, why BORE — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/KERNEL.md`](docs/KERNEL.md).
 
@@ -10,13 +12,8 @@ For the architectural rationale — why one kernel across four flavors, why Cach
 smoothkernel/
 ├── README.md
 ├── Makefile                       Top-level orchestration (make kernel / make zfs / etc.)
-├── configs/
-│   └── smooth-amd64.config        Canonical kernel .config — one for all flavors
-├── patches/
-│   ├── cachyos-<version>/         Vendored CachyOS patch series per kernel version
-│   └── nobara-picks/              Cherry-picked Nobara HID/controller patches
 ├── recipes/
-│   ├── build-kernel.sh            kernel.org tarball → patches → .config → bindeb-pkg
+│   ├── build-kernel.sh            kernel.org tarball → seed .config → bindeb-pkg
 │   ├── build-zfs.sh               OpenZFS source → DKMS .deb recipe
 │   └── stamp-version.sh           Compute KDEB_PKGVERSION + LOCALVERSION
 ├── templates/
@@ -39,17 +36,15 @@ smoothkernel/
 │   ├── bumping-kernel.md          Kernel-bump runbook
 │   └── signing.md                 Secure Boot + module-signing model
 └── examples/
-    └── smooth.env                 Sample env file consumed by the recipes
+    ├── smooth.env                 Canonical sample env file consumed by the recipes
+    └── smoothnas.env              Compatibility alias for older local workflows
 ```
 
 ## What this owns
 
-- The canonical kernel `.config` (`configs/smooth-amd64.config`). One config for every flavor.
-- The CachyOS patch series per kernel version (`patches/cachyos-*`).
-- The Nobara HID/controller cherry-picks (`patches/nobara-picks/`).
-- The recipes that turn kernel.org source + patches + config into signed `.deb`s.
+- The recipes that turn kernel.org source + a supplied seed config into Debian `.deb`s.
 - The DKMS packaging templates used by out-of-tree modules (`smoothfs`, etc.) in consuming repos.
-- The cross-cutting architecture docs for the Smooth* family — colocated here because the kernel is the piece every flavor shares.
+- The cross-cutting architecture docs for the Smooth* family.
 
 ## What this does NOT own
 
@@ -64,23 +59,24 @@ smoothkernel/
 git clone git@github.com:RakuenSoftware/smoothkernel.git
 cd smoothkernel
 cp examples/smooth.env build.env
-$EDITOR build.env              # set KERNEL_VERSION, ZFS_VERSION, CACHYOS_PATCH_TAG, etc.
-make kernel                    # produces linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb
+$EDITOR build.env              # set KERNEL_VERSION, ZFS_VERSION, CONFIG_SOURCE, etc.
+make kernel                    # produces bindeb-pkg kernel artifacts (image, headers, libc-dev)
 make zfs                       # produces zfs-dkms_*.deb + libs (against KERNEL_VERSION)
 ```
 
 The .debs land in `out/`. Promote them into the apt repo's `common` suite per [`docs/RELEASE_MODEL.md`](docs/RELEASE_MODEL.md).
 
+If you are following the one-kernel design docs: patch vendoring and a checked-in canonical `configs/` tree are still target-state work. Today's harness does not consume `CACHYOS_PATCH_TAG` or `NOBARA_PATCH_REF`.
+
 ## Bumping the kernel pin
 
 See [`docs/bumping-kernel.md`](docs/bumping-kernel.md). The short version:
 
-1. Edit `build.env` with the new `KERNEL_VERSION` and `CACHYOS_PATCH_TAG`. Selection rule for NAS: "latest stable the OpenZFS release supports".
-2. Vendor the matching CachyOS patch series into `patches/cachyos-<version>/`.
-3. `make kernel zfs` — verify both build clean against the new kernel.
-4. In each consuming repo with an out-of-tree module (`smoothfs`): bump the `compat.h` floor macros, sweep dead pre-floor branches.
-5. Deploy to a test box, validate module load + flavor-specific smoke test.
-6. Sign + promote to `common` main.
+1. Edit `build.env` with the new `KERNEL_VERSION`, `ZFS_VERSION`, and `CONFIG_SOURCE`. Selection rule for NAS: "latest stable the OpenZFS release supports".
+2. `make kernel zfs` — verify both build clean against the new kernel.
+3. In each consuming repo with an out-of-tree module (`smoothfs`): bump the `compat.h` floor macros, sweep dead pre-floor branches.
+4. Deploy to a test box, validate module load + flavor-specific smoke test.
+5. Sign + promote to `common` main.
 
 ## Why this exists
 

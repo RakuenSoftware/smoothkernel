@@ -4,16 +4,11 @@ The kernel for every Smooth* flavor. One source tree, one `.config`, one set of 
 
 This doc is the design rationale and maintenance runbook. For the mechanical build steps see [`bumping-kernel.md`](bumping-kernel.md). For the current canonical `.config` shape see [`kernel-config.md`](kernel-config.md).
 
+Repository status: the current checkout still builds from a caller-supplied `CONFIG_SOURCE` and does not yet vendor or apply CachyOS/Nobara patch sets automatically. Where this document discusses committed `configs/` content or vendored patch flows, treat that as target-state design rather than already-landed recipe behavior.
+
 ## What it is
 
-`linux-smoothkernel` ships four Debian binary packages from one source:
-
-- `linux-image-smoothkernel` — the bzImage + builtin modules
-- `linux-headers-smoothkernel` — headers for DKMS (zfs, nvidia, smoothfs, v4l-out-of-tree)
-- `linux-modules-smoothkernel` — loadable modules
-- `linux-libc-dev-smoothkernel` — userspace headers
-
-All four flavors install all four packages unchanged. `LOCALVERSION=-smooth` — the kernel reports as `x.y.z-smooth` in `uname -r`, with no per-flavor suffix.
+The current harness emits the standard `bindeb-pkg` kernel artifacts for one shared `LOCALVERSION=-smooth` kernel line. In practice that means the expected image, headers, and `linux-libc-dev` packages for `x.y.z-smooth`, plus any optional debug artifacts `bindeb-pkg` decides to emit.
 
 ## Why one kernel
 
@@ -85,7 +80,9 @@ Filesystems built in: ext4, xfs, btrfs, bcachefs. ZFS stays DKMS (CDDL/GPL).
 
 ## Build flow
 
-Starting state: `recipes/build-kernel.sh` fetches a kernel.org tarball, seeds a `.config`, runs `bindeb-pkg`. Under the one-kernel model this is extended with a patch-apply step:
+Current state: `recipes/build-kernel.sh` fetches a kernel.org tarball, seeds a caller-supplied `.config`, applies the local tuning toggles, and runs `bindeb-pkg`.
+
+Target state under the full one-kernel model adds a patch-apply step and a committed canonical config:
 
 ```
 kernel.org tarball
@@ -113,7 +110,7 @@ linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb in out/
 
 DKMS modules are not signed here; they are signed on the target system by `smooth-secureboot` after each DKMS rebuild.
 
-The existing `build.env`-driven shape continues to work; it just grows two new variables — `CACHYOS_PATCH_TAG` and `NOBARA_PATCH_REF` — that point at the patch sources for this kernel version. `LOCALVERSION=-smooth` replaces `-smoothnas-lts` (etc.).
+Today's `build.env` contract is still `KERNEL_VERSION`, `LOCALVERSION`, `CONFIG_SOURCE`, and `ZFS_VERSION`. `CACHYOS_PATCH_TAG` and `NOBARA_PATCH_REF` are not consumed by the recipes in this checkout yet.
 
 ## Rebase cadence
 
@@ -146,7 +143,7 @@ The existing smoothkernel harness (recipes/, templates/, Makefile) remains the r
 - `LOCALVERSION` convention collapses to `-smooth`
 - Add a patch-apply step between extract and config-seed
 - `build.env` grows patch-source variables
-- `examples/smoothnas.env` becomes `examples/smooth.env` (or similar) — just one
+- `examples/smooth.env` is the canonical sample env; `examples/smoothnas.env` remains only as a compatibility alias
 
 See [`bumping-kernel.md`](bumping-kernel.md) for the updated bump runbook.
 
