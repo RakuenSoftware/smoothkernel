@@ -6,14 +6,7 @@ This doc is the design rationale and maintenance runbook. For the mechanical bui
 
 ## What it is
 
-`linux-smoothkernel` ships four Debian binary packages from one source:
-
-- `linux-image-smoothkernel` — the bzImage + builtin modules
-- `linux-headers-smoothkernel` — headers for DKMS (zfs, nvidia, smoothfs, v4l-out-of-tree)
-- `linux-modules-smoothkernel` — loadable modules
-- `linux-libc-dev-smoothkernel` — userspace headers
-
-All four flavors install all four packages unchanged. `LOCALVERSION=-smooth` — the kernel reports as `x.y.z-smooth` in `uname -r`, with no per-flavor suffix.
+The current harness emits the standard `bindeb-pkg` kernel artifacts for one shared `LOCALVERSION=-smooth` kernel line. In practice that means the expected image, headers, and `linux-libc-dev` packages for `x.y.z-smooth`, plus any optional debug artifacts `bindeb-pkg` decides to emit.
 
 ## Why one kernel
 
@@ -79,7 +72,7 @@ One canonical `.config`, versioned in smoothkernel. See [`kernel-config.md`](ker
 - `CONFIG_PREEMPT=y`
 - `CONFIG_HZ=1000`
 - `CONFIG_SCHED_BORE=y`, BORE selected as default
-- `CONFIG_MODULE_SIG_FORCE=n` for now (see [`signing.md`](signing.md))
+- `CONFIG_MODULE_SIG_FORCE=y`, with packaged modules signed in release builds and DKMS modules signed on-host (see [`signing.md`](signing.md))
 - `CONFIG_DEBUG_INFO_BTF=n`, debug info stripped (matches `build-kernel.sh` STRIP_DEBUG_INFO=1 default)
 - APPLIANCE_TRIM profile-equivalent: drop only cross-flavor-irrelevant legacy / industrial families. It must not remove DRM, audio, media, wifi, or input support needed by HTPC / Desktop.
 
@@ -87,7 +80,7 @@ Filesystems built in: ext4, xfs, btrfs, bcachefs. ZFS stays DKMS (CDDL/GPL).
 
 ## Build flow
 
-Starting state: `recipes/build-kernel.sh` fetches a kernel.org tarball, seeds a `.config`, runs `bindeb-pkg`. Under the one-kernel model this is extended with an ordered patch-apply step:
+`recipes/build-kernel.sh` fetches a kernel.org tarball, applies the ordered vendored patch lanes, seeds the canonical `.config`, and runs `bindeb-pkg`:
 
 ```
 kernel.org tarball
@@ -110,16 +103,20 @@ apply appliance-trim (net-tuning, server-tuning — already in build-kernel.sh)
     ↓
 make bindeb-pkg
     ↓
+release build signs packaged modules
+    ↓
 linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb in out/
 ```
 
-The existing `build.env`-driven shape continues to work, but the patch inputs are now lane names rather than remote refs:
+The `build.env` contract is `KERNEL_VERSION`, `LOCALVERSION`, and `ZFS_VERSION`, plus the patch-lane names — defaults pick the vendored lanes for the current `KERNEL_VERSION`, and overrides are only needed to swap in a different lane:
 
 - `CACHYOS_PATCHSET=cachyos-<kernel-version>`
 - `NOBARA_PATCHSET=nobara-picks`
 - `POST_NOBARA_PATCHSET=post-nobara-<kernel-version>`
 
 `LOCALVERSION=-smooth` replaces `-smoothnas-lts` (etc.).
+
+DKMS modules are not signed here; they are signed on the target system by `smooth-secureboot` after each DKMS rebuild.
 
 ## Rebase cadence
 
@@ -151,8 +148,8 @@ The existing smoothkernel harness (recipes/, templates/, Makefile) remains the r
 - Canonical `.config` becomes part of smoothkernel (or a sibling `smoothkernel-config` repo), not per-flavor
 - `LOCALVERSION` convention collapses to `-smooth`
 - Add an ordered patch-lane step between extract and config-seed
-- `build.env` grows patchset variables
-- `examples/smoothnas.env` becomes `examples/smooth.env` (or similar) — just one
+- `build.env` grows patch-lane variables
+- `examples/smooth.env` is the canonical sample env; `examples/smoothnas.env` remains only as a compatibility alias
 
 See [`bumping-kernel.md`](bumping-kernel.md) for the updated bump runbook.
 
@@ -160,3 +157,4 @@ See [`bumping-kernel.md`](bumping-kernel.md) for the updated bump runbook.
 
 - **Exact downstream provenance cadence** — how often we refresh the base lane from CachyOS/Nobara versus carrying local rebases longer-term.
 - **Kernel signing** — tracked in [`signing.md`](signing.md). Phase 0.10 blocker for appliance shipping.
+- **Release-key scope** — one Smooth* module-signing key keeps the one-kernel pipeline simple, but per-product keys reduce blast radius.

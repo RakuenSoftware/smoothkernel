@@ -30,10 +30,10 @@ The following settings are load-bearing across every flavor. Changing one has cr
 | `CONFIG_SCHED_BORE` | `y` | BORE scheduler enabled by the vendored base lane; default `y` |
 | `CONFIG_SCHED_EXT` | `m` | sched-ext available as a module; not default, escape hatch |
 | Microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
-| `CONFIG_MODULE_SIG_FORCE` | `n` | See [`signing.md`](signing.md); Phase 0.10 blocker |
+| `CONFIG_MODULE_SIG_FORCE` | `y` | Shipped kernels reject unsigned modules; packaged modules are signed in CI and DKMS modules are signed on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
 | `CONFIG_DEBUG_INFO_BTF` | `n` | Set by `STRIP_DEBUG_INFO=1` default in build-kernel.sh |
-| `CONFIG_SYSTEM_TRUSTED_KEYS` | `""` | Cleared to avoid Debian's trusted-keys path |
-| `CONFIG_SYSTEM_REVOCATION_KEYS` | `""` | Same |
+| `CONFIG_SYSTEM_TRUSTED_KEYS` | build-time injected Rakuen module cert | Release builds inject the public cert for packaged-module signing; the checked-in config does not carry secrets or machine-local paths |
+| `CONFIG_SYSTEM_REVOCATION_KEYS` | `""` | Explicitly managed by our release process rather than inherited from Debian packaging defaults |
 
 ## Filesystems
 

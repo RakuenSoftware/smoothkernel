@@ -39,27 +39,28 @@ smoothkernel/
 │   ├── SMOOTHHTPC.md              HTPC flavor + smoothtv shell spec
 │   ├── SMOOTHDESKTOP.md           Desktop flavor + Windows compat spec
 │   ├── bumping-kernel.md          Kernel-bump runbook
-│   └── signing.md                 Module signing / MOK enrollment (placeholder)
+│   └── signing.md                 Secure Boot + module-signing model
 └── examples/
-    └── smooth.env                 Sample env file consumed by the recipes
+    ├── smooth.env                 Canonical sample env file consumed by the recipes
+    └── smoothnas.env              Compatibility alias for older local workflows
 ```
 
 ## What this owns
 
 - The canonical kernel `.config` (`configs/smooth-amd64.config`). One config for every flavor.
 - The vendored patch lanes per kernel version:
-- `patches/cachyos-*` for the downstream base lane (`0001-bore.patch` on pristine kernel.org today)
-- `patches/nobara-picks/` for Nobara cherry-picks
-- `patches/post-nobara-*` for follow-on carry patches
+  - `patches/cachyos-*` for the downstream base lane (`0001-bore.patch` on pristine kernel.org today)
+  - `patches/nobara-picks/` for Nobara cherry-picks
+  - `patches/post-nobara-*` for follow-on carry patches
 - The recipes that turn pristine kernel.org source + vendored patch lanes + config into signed `.deb`s.
 - The DKMS packaging templates used by out-of-tree modules (`smoothfs`, etc.) in consuming repos.
-- The cross-cutting architecture docs for the Smooth* family — colocated here because the kernel is the piece every flavor shares.
+- The cross-cutting architecture docs for the Smooth* family.
 
 ## What this does NOT own
 
 - Per-flavor `.config` variants — there aren't any. One canonical config; flavor differences live in userspace (udev/sysctl/tuned) via per-flavor `-tuning` packages.
 - Out-of-tree module *sources* — per-OS (e.g. `smoothfs` source lives in SmoothNAS).
-- Signed-module key custody — per-deployment, never in git (see [`docs/signing.md`](docs/signing.md)).
+- Module-signing trust model and key custody policy — defined in [`docs/signing.md`](docs/signing.md); no private keys live in git.
 - Per-OS CI plumbing — each consuming repo owns its test pipeline.
 
 ## Quick start

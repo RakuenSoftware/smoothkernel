@@ -2,7 +2,7 @@
 # Each target is a thin wrapper around the recipe in recipes/.
 #
 # Usage:
-#   cp examples/smoothnas.env build.env
+#   cp examples/smooth.env build.env
 #   $EDITOR build.env
 #   make kernel
 #   make zfs

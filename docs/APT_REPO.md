@@ -1,6 +1,13 @@
 # Apt repo model
 
-Companion doc to [`../../apt-repo/README.md`](../../apt-repo/README.md), which covers the concrete mechanics (signing, scripts, GitHub Pages deploy). This doc covers the design: suite layout, component choices, pinning, promotion.
+Design for the Smooth* apt repository: suite layout, component choices, pinning, promotion, and the minimum repository mechanics the rest of this doc set assumes.
+
+The sibling `apt-repo` repo may carry the implementation details, but the cross-repo contract is:
+
+- `pool/` and `dists/` are committed artifacts, not generated on the web host
+- `scripts/add-package.sh` adds packages, refreshes indices, and updates `Release` metadata
+- `Origin: RakuenSoftware` is set in each signed `Release` file
+- CI signs `Release` / `InRelease`, publishes `public-key.asc`, and deploys the static tree
 
 ## Suite layout
 
@@ -8,7 +15,7 @@ Five suites, all signed by the same key, all served from the same origin:
 
 | Suite | Purpose |
 |---|---|
-| `common` | Packages shared across flavors: `linux-smoothkernel`, `linux-smoothkernel-headers`, `mesa` (full Debian-equivalent package set), `linux-firmware-smooth`, `smooth-base`, `smooth-gfx`, `smooth-workstation`, `smoothgui-assets`, `smooth-installer` artifacts |
+| `common` | Packages shared across flavors: `linux-smoothkernel`, `linux-smoothkernel-headers`, `mesa` (full Debian-equivalent package set), `linux-firmware-smooth`, `smooth-base`, `smooth-gfx`, `smooth-workstation`, `smooth-secureboot`, `smoothgui-assets`, `smooth-installer` artifacts |
 | `smoothnas` | NAS-specific: `smoothnas` meta, `smoothnas-tuning`, `tierd`, `tierd-ui`, `smoothfs` (DKMS), optional NAS-only helpers |
 | `smoothrouter` | Router-specific: `smoothrouter` meta, `smoothrouter-tuning`, `smoothrouterd`, `smoothrouter-ui`, `smoothrouter-setup` (first-boot wizard) |
 | `smoothhtpc` | HTPC-specific: `smoothhtpc` meta, `smoothhtpc-tuning`, `smoothtv`, HTPC-specific helpers |
@@ -30,6 +37,19 @@ Flat component per suite. No `contrib` / `non-free` split internal to the Smooth
 Rationale: the `main`/`contrib`/`non-free` distinction is a Debian-project artifact about the project's free-software guidelines. It doesn't add value for a vendor repo where we pick and sign every package ourselves. Non-free-licensed inclusions (firmware, NVIDIA driver mirror) are covered by the enabled-by-default `non-free-firmware` component on the Debian base, not by an internal split here.
 
 If we later need a pre-promotion staging component, introduce a `testing` suite (not component) — see "Promotion" below.
+
+## Debian base components by flavor
+
+The Smooth* repo stays `main`-only, but some flavors require Debian components beyond plain `main`.
+
+- All flavors enable Debian `main` and `non-free-firmware`
+- `smoothdesktop` additionally enables Debian `contrib` and `non-free` before the flavor meta-package is installed
+- `smoothhtpc` additionally enables Debian `contrib` and `non-free` before the flavor meta-package is installed
+- `smoothnas` and `smoothrouter` do not enable Debian `contrib` / `non-free` by default
+
+Desktop and HTPC also enable `i386` before the flavor meta-package is installed so Steam / Proton / Wine-class 32-bit userspace can be resolved against the Rakuen Mesa stack.
+
+This matters because packages such as `steam-installer`, `nvidia-driver-*`, `intel-media-va-driver-non-free`, and `ttf-mscorefonts-installer` are not satisfiable from plain Debian `main`.
 
 ## Architecture: amd64-only at v1
 
@@ -98,17 +118,23 @@ Out of scope until we ship to real users.
 
 DKMS modules (`zfs-dkms`, `smoothfs`-via-DKMS, NVIDIA if we mirror it) build against `linux-smoothkernel-headers` on install. They live in `common` so every flavor can pull them; flavor meta-packages declare Depends on only the modules they actually need.
 
+Every flavor meta-package also depends on `smooth-secureboot`, which owns the per-host Secure Boot / MOK bootstrap and DKMS-signing hooks for the shared-kernel model.
+
 - `smoothnas` depends on `zfs-dkms`, `smoothfs`
 - `smoothrouter` depends on neither
 - `smoothhtpc`, `smoothdesktop` may depend on NVIDIA driver packages conditionally (handled via Recommends + install-time detection)
 
 ## External apt sources
 
-Some flavors need upstream third-party apt repos for packages we deliberately don't rebuild ourselves. `smooth-base`'s `postinst` adds them selectively on the right flavors:
+Some flavors need upstream third-party repos for packages we deliberately don't rebuild ourselves.
+
+If a flavor meta-package depends on packages from one of these sources, that source must be configured **before** `apt` resolves the meta-package. That means external-source bootstrap belongs to the flavor installer or a flavor-specific bootstrap helper, not to `smooth-base`'s `postinst`.
+
+`smooth-base` owns only the Rakuen repo key/source/pinning. Flavor-specific external sources are a flavor concern.
 
 | Source | Added by | Suite | Purpose |
 |---|---|---|---|
-| **WineHQ** (`dl.winehq.org/wine-builds/debian`) | `smooth-base` postinst when `smoothdesktop` is present | `winehq-stable` | Current upstream Wine; Debian's lags by months. See [`SMOOTHDESKTOP.md`](SMOOTHDESKTOP.md). |
+| **WineHQ** (`dl.winehq.org/wine-builds/debian`) | `smoothdesktop` installer profile or bootstrap helper, before `smoothdesktop` is installed | `winehq-stable` | Current upstream Wine; Debian's lags by months. See [`SMOOTHDESKTOP.md`](SMOOTHDESKTOP.md). |
 | **Flathub** (`flathub.org`) | `smoothdesktop-theme` postinst | — | App availability for Discover / `flatpak install`. Not apt. |
 
 Each added repo has its signing key dropped under `/etc/apt/keyrings/` with a corresponding `signed-by=` entry in `sources.list.d/` — never `apt-key add`, which is deprecated.

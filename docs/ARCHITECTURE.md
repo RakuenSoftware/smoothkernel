@@ -171,5 +171,5 @@ Engineering investment, largest first:
 ## Open questions
 
 - **Stable channel model.** Start with a single `main` component per suite; add `testing` for pre-promotion soak once rebase cadence justifies it.
-- **Module signing.** Tracked in [`signing.md`](signing.md). Needs resolution before appliance shipping.
+- **Module signing and Secure Boot.** Standardized in [`signing.md`](signing.md): release-built modules are signed in CI, DKMS modules are signed on-host via `smooth-secureboot`.
 - **Arm64 support.** All four flavors are amd64-only at v1. HTPC and NAS have the strongest arm64 cases; router is close behind. Deferred.

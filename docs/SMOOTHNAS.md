@@ -1,6 +1,6 @@
 # SmoothNAS
 
-NAS appliance flavor. Authoritative product architecture lives in [`SmoothNAS/docs/ARCHITECTURE.md`](../../SmoothNAS/docs/ARCHITECTURE.md); this doc covers the cross-cutting pieces: what goes in the `smoothnas` apt suite, how the existing Makefile maps to Debian packaging, and the NAS-specific bits of the shared base.
+NAS appliance flavor. This doc is the Smooth* cross-repo contract for SmoothNAS: what goes in the `smoothnas` apt suite, how the existing Makefile maps to Debian packaging, and the NAS-specific bits of the shared base. The SmoothNAS repo may carry deeper product-internal details, but cross-cutting decisions should be readable from here.
 
 ## Suite composition (`smoothnas` suite)
 
@@ -25,6 +25,7 @@ Depends:
  linux-headers-smoothkernel,
  linux-firmware-smooth,
  smooth-base,
+ smooth-secureboot,
  smoothnas-tuning,
  tierd,
  tierd-ui,

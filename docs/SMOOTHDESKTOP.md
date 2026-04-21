@@ -42,6 +42,7 @@ From `common`: `smooth-workstation`, `linux-smoothkernel`, `smooth-base`, etc.
 ```
 Depends:
  smooth-workstation,
+ smooth-secureboot,
  smoothdesktop-tuning,
  smoothdesktop-theme,
  kde-standard,                 # Plasma + common KDE apps, without PIM/edu bloat
@@ -85,7 +86,7 @@ Recommends:
  q4wine
 ```
 
-A Wine-capable system needs i386 multiarch enabled (`dpkg --add-architecture i386`); `smoothdesktop`'s `postinst` does this on install before pulling the 32-bit libraries Wine depends on. Without multiarch, 32-bit Windows apps (still the majority of legacy software) won't run.
+Because `apt` resolves dependencies before any package `postinst` runs, the desktop bootstrap path does the source setup first. The SmoothDesktop ISO profile, or an equivalent `smoothdesktop-bootstrap` helper on an existing Debian install, enables Debian `contrib non-free non-free-firmware`, enables `i386`, and adds the WineHQ source/key before `apt install smoothdesktop`. Without that ordering, `steam-installer` and `winehq-stable` are not resolvable during the initial install.
 
 Everything desktop-relevant on first boot. Users can uninstall what they don't want; the point is a complete-feeling system without a first-week hunt for basics.
 
@@ -147,7 +148,7 @@ Running Windows applications is a first-class feature. Three complementary paths
 
 From **WineHQ's official stable repo** (`https://dl.winehq.org/wine-builds/debian/`), not Debian's `wine` package. WineHQ ships the actively-developed upstream Wine; Debian's package lags by months and misses Wine features (DXVK integration paths, WoW64-no-i386 transitions, newer Windows-app compatibility fixes). For a desktop positioned as a Windows replacement, WineHQ is the right source.
 
-`smooth-base`'s `postinst` adds WineHQ's apt source and GPG key so `winehq-stable` resolves on install:
+The desktop bootstrap path adds WineHQ's apt source and GPG key before `smoothdesktop` is installed:
 
 ```
 # WineHQ signing key → /etc/apt/keyrings/winehq-archive.key
@@ -165,7 +166,7 @@ We ship `winehq-stable`, not `winehq-staging` or `winehq-devel` — staging carr
 
 ### i386 multiarch
 
-WineHQ's 32-bit packages require Debian's i386 architecture enabled. `smooth-base`'s `postinst` runs `dpkg --add-architecture i386 && apt update` *before* adding the WineHQ source so the dependency resolver sees i386 packages when `winehq-stable` pulls them. Without this, 32-bit Windows apps (still the majority of legacy software) won't run.
+WineHQ's 32-bit packages require Debian's i386 architecture enabled. The same desktop bootstrap path runs `dpkg --add-architecture i386 && apt update` before `winehq-stable` is resolved, so the dependency resolver sees the 32-bit packages Wine pulls in. Without this, 32-bit Windows apps (still the majority of legacy software) won't run.
 
 ### Prefix managers (Lutris, Bottles)
 
@@ -197,7 +198,7 @@ The stack covers: Windows productivity apps (Office, specialist tools), Windows 
 - `intel-media-va-driver-non-free` (Intel VA-API for new-codec decode) — via `smooth-gfx`.
 - `libdvd-pkg` — for DVD playback, if anyone still does that.
 - Spotify, Netflix, Disney+ — users install Widevine-containing Chrome or Firefox themselves. Widevine DRM can't be redistributed; we don't ship it.
-- Microsoft fonts — `ttf-mscorefonts-installer` in Debian's `contrib` component; user must enable Debian's `contrib` explicitly.
+- Microsoft fonts — `ttf-mscorefonts-installer` from Debian `contrib`; SmoothDesktop's bootstrap path already enables `contrib`, so this stays a user-choice package rather than a repo-bootstrap step.
 
 ## Desktop-specific tuning (`smoothdesktop-tuning`)
 
@@ -224,7 +225,7 @@ All "just works" defaults:
 
 ## NVIDIA
 
-See [`GRAPHICS.md`](GRAPHICS.md). v1 posture: user enables Debian's `non-free`, installs `nvidia-driver-<latest>`, DKMS builds against `linux-smoothkernel-headers`, everything works. If we later decide to mirror NVIDIA drivers into `common`, `smoothdesktop` picks up the benefit transparently.
+See [`GRAPHICS.md`](GRAPHICS.md). v1 posture: the desktop bootstrap path already enables Debian `non-free`, so installing `nvidia-driver-<latest>` is straightforward; DKMS builds against `linux-smoothkernel-headers` and everything works. If we later decide to mirror NVIDIA drivers into `common`, `smoothdesktop` picks up the benefit transparently.
 
 ## First-run experience
 

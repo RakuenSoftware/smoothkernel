@@ -82,6 +82,8 @@ ls out/
 
 Both must build clean. Kernel build failures are usually patch-conflict or config drift; ZFS build failures are usually a kernel-API break that OpenZFS hasn't caught up to yet.
 
+Local builds are sufficient for patch/config bring-up. The promotable artifact still comes from signing-capable CI so packaged modules carry the Rakuen release signature described in [`signing.md`](signing.md).
+
 ### 5. Update out-of-tree module compat shims
 
 For each consuming repo with an out-of-tree module (`smoothfs` in SmoothNAS today; others later):
@@ -102,12 +104,21 @@ ssh test-box 'sudo reboot'
 
 ### 7. Validate
 
-Per-flavor smoke tests. At minimum:
+Per-flavor smoke tests. The minimum publish gate is one representative target per flavor class, not just "the author's test box":
+
+- **SmoothNAS**: real or virtual machine with a ZFS pool and SMB export path
+- **SmoothRouter**: dual-NIC box or VM with WAN/LAN traffic path and WireGuard enabled
+- **SmoothHTPC**: Intel or AMD GPU box that boots to `smoothtv` and exercises hardware video decode
+- **SmoothDesktop**: desktop-class box that boots to Plasma and exercises Rakuen Mesa userspace
+
+Per target, the minimum smoke tests are:
 
 - **SmoothNAS**: mount a ZFS pool, export an SMB share, confirm tierd starts + UI loads.
 - **SmoothRouter**: pass packets WAN↔LAN, verify nftables rules applied, wireguard handshake completes.
 - **SmoothHTPC**: boot to smoothtv, launch Kodi, verify VA-API hardware decode.
 - **SmoothDesktop**: boot to Plasma, launch Firefox and Steam Big Picture, verify GPU acceleration.
+
+NVIDIA is a conditional lane rather than a universal gate: run it whenever the kernel bump also changes NVIDIA-relevant DKMS or graphics packaging assumptions.
 
 Flavor-specific smoke tests live in their respective repos' `docs/OPERATIONS.md`.
 
@@ -126,14 +137,20 @@ git push
 
 Signing and GitHub Pages deploy runs in CI.
 
-### 9. Sign
+### 9. Secure-Boot verify
 
-Module signing is a Phase 0.10 blocker for appliance shipping. Currently unsigned; see [`signing.md`](signing.md). Update this doc when signing lands.
+Before marking the bump promotable:
+
+- verify a CI-produced kernel package reports a non-empty signer on one packaged module
+- verify a Secure-Boot-enabled test machine enrolled via `smooth-secureboot` can rebuild and load ZFS
+- verify an unsigned ad-hoc module is rejected
+
+See [`signing.md`](signing.md) for the trust model.
 
 ## Tradeoffs to remember
 
 - **Major bumps (`6.x → 7.0`)** historically have more API churn and surface more shim work. Wait for `7.1` minimum before shipping to users.
-- **Point bumps within an LTS** (`6.18.22 → 6.18.30`) almost never break out-of-tree modules. Fast.
+- **Point bumps within an LTS** (`6.18.22 → 6.18.30`) usually only surface config drift or out-of-tree module fallout.
 - **Cross-line bumps** (`6.18 → 6.19`) often involve real API changes. Plan for shim work in any DKMS consumer.
 - **Patch-lane lag**: if the base lane, Nobara picks, or post-Nobara carry patches are not ready for your target kernel, wait or schedule the rebase work.
 - **OpenZFS lag**: typically 1–3 months behind mainline stable. Same "wait" rule if NAS is in-scope.
