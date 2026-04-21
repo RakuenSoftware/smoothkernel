@@ -1,10 +1,8 @@
 # smoothkernel
 
-Kernel build harness and architecture docs for the Smooth* family of Debian-based appliance OSes (SmoothNAS, SmoothRouter, SmoothHTPC, SmoothDesktop).
+Kernel build harness and canonical `.config` for the Smooth* family of Debian-based appliance OSes (SmoothNAS, SmoothRouter, SmoothHTPC, SmoothDesktop). Produces **one** `linux-smoothkernel` .deb set installed identically on every flavor.
 
-The current harness builds from a caller-supplied seed `.config` via `CONFIG_SOURCE`. The one-kernel documentation in this repo describes the intended shared-kernel model, but the committed `configs/` tree and vendored patch flow described in some docs are not wired into this checkout yet.
-
-For the architectural rationale — why one kernel across four flavors, why CachyOS patches, why BORE — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/KERNEL.md`](docs/KERNEL.md).
+For the architectural rationale — why one kernel across four flavors, why a pristine kernel.org base, why BORE — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/KERNEL.md`](docs/KERNEL.md).
 
 ## What's here
 
@@ -12,8 +10,15 @@ For the architectural rationale — why one kernel across four flavors, why Cach
 smoothkernel/
 ├── README.md
 ├── Makefile                       Top-level orchestration (make kernel / make zfs / etc.)
+├── configs/
+│   ├── smooth-amd64.config        Canonical kernel .config — one for all flavors
+│   └── <kernel-version>/          Versioned archived config snapshots
+├── patches/
+│   ├── cachyos-<version>/         Vendored downstream base lane per kernel version (`0001-bore.patch` today)
+│   ├── nobara-picks/              Cherry-picked Nobara HID/controller patches
+│   └── post-nobara-<version>/     Extra patches carried after Nobara for that kernel version
 ├── recipes/
-│   ├── build-kernel.sh            kernel.org tarball → seed .config → bindeb-pkg
+│   ├── build-kernel.sh            kernel.org tarball → patches → .config → bindeb-pkg
 │   ├── build-zfs.sh               OpenZFS source → DKMS .deb recipe
 │   └── stamp-version.sh           Compute KDEB_PKGVERSION + LOCALVERSION
 ├── templates/
@@ -42,7 +47,12 @@ smoothkernel/
 
 ## What this owns
 
-- The recipes that turn kernel.org source + a supplied seed config into Debian `.deb`s.
+- The canonical kernel `.config` (`configs/smooth-amd64.config`). One config for every flavor.
+- The vendored patch lanes per kernel version:
+  - `patches/cachyos-*` for the downstream base lane (`0001-bore.patch` on pristine kernel.org today)
+  - `patches/nobara-picks/` for Nobara cherry-picks
+  - `patches/post-nobara-*` for follow-on carry patches
+- The recipes that turn pristine kernel.org source + vendored patch lanes + config into signed `.deb`s.
 - The DKMS packaging templates used by out-of-tree modules (`smoothfs`, etc.) in consuming repos.
 - The cross-cutting architecture docs for the Smooth* family.
 
@@ -59,31 +69,31 @@ smoothkernel/
 git clone git@github.com:RakuenSoftware/smoothkernel.git
 cd smoothkernel
 cp examples/smooth.env build.env
-$EDITOR build.env              # set KERNEL_VERSION, ZFS_VERSION, CONFIG_SOURCE, etc.
-make kernel                    # produces bindeb-pkg kernel artifacts (image, headers, libc-dev)
+$EDITOR build.env              # set KERNEL_VERSION, ZFS_VERSION, and patch lane names if overriding defaults
+make kernel                    # produces linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb
 make zfs                       # produces zfs-dkms_*.deb + libs (against KERNEL_VERSION)
 ```
 
 The .debs land in `out/`. Promote them into the apt repo's `common` suite per [`docs/RELEASE_MODEL.md`](docs/RELEASE_MODEL.md).
 
-If you are following the one-kernel design docs: patch vendoring and a checked-in canonical `configs/` tree are still target-state work. Today's harness does not consume `CACHYOS_PATCH_TAG` or `NOBARA_PATCH_REF`.
-
 ## Bumping the kernel pin
 
 See [`docs/bumping-kernel.md`](docs/bumping-kernel.md). The short version:
 
-1. Edit `build.env` with the new `KERNEL_VERSION`, `ZFS_VERSION`, and `CONFIG_SOURCE`. Selection rule for NAS: "latest stable the OpenZFS release supports".
-2. `make kernel zfs` — verify both build clean against the new kernel.
-3. In each consuming repo with an out-of-tree module (`smoothfs`): bump the `compat.h` floor macros, sweep dead pre-floor branches.
-4. Deploy to a test box, validate module load + flavor-specific smoke test.
-5. Sign + promote to `common` main.
+1. Edit `build.env` with the new `KERNEL_VERSION`. Selection rule for NAS: "latest stable the OpenZFS release supports".
+2. Vendor the matching patch lanes into `patches/cachyos-<version>/` and `patches/post-nobara-<version>/`, keeping `patches/nobara-picks/` current as needed.
+3. `make kernel-config-update` to refresh the canonical config against the new patched tree.
+4. `make kernel zfs` — verify both build clean against the new kernel.
+5. In each consuming repo with an out-of-tree module (`smoothfs`): bump the `compat.h` floor macros, sweep dead pre-floor branches.
+6. Deploy to a test box, validate module load + flavor-specific smoke test.
+7. Sign + promote to `common` main.
 
 ## Why this exists
 
 The single-kernel decision collapses four would-be kernel pipelines into one. The harness exists to make that one pipeline:
 
-- Reproducible — kernel.org source + vendored patches + checked-in config → deterministic .debs
-- Low-friction for kernel bumps — `build.env` edit + `make kernel zfs` + compat.h sweep
+- Reproducible — pristine kernel.org source + vendored patch lanes + checked-in config → deterministic .debs
+- Low-friction for kernel bumps — patch lane refresh + `make kernel-config-update` + `make kernel zfs` + compat.h sweep
 - Consistent across consumers — every flavor consumes the identical .deb, no per-flavor drift
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the rationale behind the one-kernel model.
