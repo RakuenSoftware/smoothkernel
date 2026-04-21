@@ -2,7 +2,7 @@
 # Each target is a thin wrapper around the recipe in recipes/.
 #
 # Usage:
-#   cp examples/smoothnas.env build.env
+#   cp examples/smooth.env build.env
 #   $EDITOR build.env
 #   make kernel
 #   make zfs
@@ -29,7 +29,7 @@ help:
 	@echo ""
 	@echo "Required env (set in $(ENV_FILE) or shell):"
 	@echo "  KERNEL_VERSION    e.g. 6.18.22"
-	@echo "  LOCALVERSION      e.g. -smoothnas-lts (must start with -)"
+	@echo "  LOCALVERSION      e.g. -smooth (must start with -)"
 	@echo "  ZFS_VERSION       e.g. 2.4.1"
 	@echo "  CONFIG_SOURCE     path to seed .config (per-OS)"
 	@echo ""

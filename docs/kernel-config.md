@@ -2,9 +2,11 @@
 
 The canonical `.config` for `linux-smoothkernel`. One config for every Smooth* flavor. See [`KERNEL.md`](KERNEL.md) for the one-kernel rationale and [`bumping-kernel.md`](bumping-kernel.md) for how the config carries forward across kernel bumps.
 
+Repository status: the current checkout does not yet carry the canonical config in-tree. `recipes/build-kernel.sh` still consumes an external `CONFIG_SOURCE` path from `build.env`. The committed `configs/` layout described below is target state.
+
 ## Custody
 
-The config lives in smoothkernel (colocated with the recipes that consume it), committed as `configs/smooth-amd64.config`. Versioned alongside the patch series for that kernel version.
+Target state: the config lives in smoothkernel (colocated with the recipes that consume it), committed as `configs/smooth-amd64.config`. Versioned alongside the patch series for that kernel version.
 
 ```
 smoothkernel/
@@ -15,7 +17,7 @@ smoothkernel/
 │   ├── cachyos-<kernel-version>/    Vendored CachyOS patch series
 │   └── nobara-picks/                Cherry-picked Nobara HID patches
 └── recipes/
-    └── build-kernel.sh               Consumes configs/ + patches/ automatically
+    └── build-kernel.sh               Planned consumer of configs/ + patches/
 ```
 
 ## Invariants
@@ -103,7 +105,7 @@ When a kernel bump introduces new config symbols (common on major bumps):
 
 1. `make olddefconfig` handles the mechanical merge — it keeps our answers and defaults new options.
 2. Review the resulting diff. Sometimes a new option defaults to `y` and bloats the image; sometimes to `n` and disables something we want. Check the diff manually.
-3. Commit the updated `configs/smooth-amd64.config` as part of the kernel-bump PR.
+3. Once the repo carries the canonical config in-tree, commit the updated `configs/smooth-amd64.config` as part of the kernel-bump PR.
 
 ## Out-of-tree modules
 

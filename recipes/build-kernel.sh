@@ -5,8 +5,9 @@
 #
 # Required env (set in build.env or the calling shell):
 #   KERNEL_VERSION    e.g. 6.18.22
-#   LOCALVERSION      e.g. -smoothnas-lts (must start with -)
-#   CONFIG_SOURCE     path to seed .config (per-OS; usually copied from
+#   LOCALVERSION      e.g. -smooth (must start with -)
+#   CONFIG_SOURCE     path to seed .config (currently caller-supplied;
+#                     usually copied from
 #                     the running kernel of a known-good box)
 #
 # Optional env:
@@ -18,7 +19,7 @@
 set -euo pipefail
 
 : "${KERNEL_VERSION:?KERNEL_VERSION required (e.g. 6.18.22)}"
-: "${LOCALVERSION:?LOCALVERSION required (e.g. -smoothnas-lts)}"
+: "${LOCALVERSION:?LOCALVERSION required (e.g. -smooth)}"
 : "${CONFIG_SOURCE:?CONFIG_SOURCE required (path to seed .config)}"
 [[ "$LOCALVERSION" == -* ]] || { echo "LOCALVERSION must start with '-'"; exit 1; }
 
