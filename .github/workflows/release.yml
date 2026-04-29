@@ -33,7 +33,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
-            libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils
+            libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils \
+            autoconf automake libtool gawk alien dh-python po-debconf \
+            uuid-dev libudev-dev libblkid-dev libtirpc-dev libcurl4-openssl-dev \
+            libaio-dev libattr1-dev libffi-dev zlib1g-dev libpam0g-dev \
+            python3 python3-dev python3-cffi python3-setuptools python3-packaging \
+            python3-distlib parted
 
       - name: Seed build.env
         run: cp examples/smooth.env build.env
