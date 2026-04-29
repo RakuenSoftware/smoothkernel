@@ -1,0 +1,113 @@
+name: Release
+
+# SmoothKernel publishes the kernel + OpenZFS .deb artifacts that every
+# Smooth* flavour (SmoothNAS, SmoothRouter, SmoothHTPC, SmoothDesktop)
+# installs identically. Building the kernel happens here, once, per
+# SmoothKernel commit; consuming repos download the published assets.
+#
+# Triggers:
+#   - push to main: every kernel/patch/config change publishes a new
+#     prerelease tagged v<KERNEL_VERSION>-<short-sha>.
+#   - tag push v*.*.*: publishes a stable release at that tag.
+#   - workflow_dispatch: manual run for ad-hoc rebuilds.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
+            libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils
+
+      - name: Seed build.env
+        run: cp examples/smooth.env build.env
+
+      - name: Build kernel
+        run: make kernel
+
+      - name: Build OpenZFS
+        run: make zfs
+
+      - name: Determine release tag
+        id: meta
+        run: |
+          set -euo pipefail
+          KERNEL_VERSION="$(awk -F= '/^KERNEL_VERSION=/ {gsub(/[ \t]/,""); print $2; exit}' build.env)"
+          ZFS_VERSION="$(awk -F= '/^ZFS_VERSION=/ {gsub(/[ \t]/,""); print $2; exit}' build.env)"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            NAME="SmoothKernel ${TAG}"
+            PRERELEASE=false
+          else
+            TAG="v${KERNEL_VERSION}-${SHORT_SHA}"
+            NAME="SmoothKernel ${KERNEL_VERSION} (${SHORT_SHA})"
+            PRERELEASE=true
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "kernel_version=${KERNEL_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zfs_version=${ZFS_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp out/*.deb dist/
+          (cd dist && sha256sum *.deb > SHA256SUMS)
+
+          # manifest.json lets consumers discover what's in the release
+          # without parsing filenames. Lists every .deb and its sha256.
+          {
+            printf '{\n'
+            printf '  "tag": "%s",\n' "${{ steps.meta.outputs.tag }}"
+            printf '  "kernel_version": "%s",\n' "${{ steps.meta.outputs.kernel_version }}"
+            printf '  "zfs_version": "%s",\n' "${{ steps.meta.outputs.zfs_version }}"
+            printf '  "commit": "%s",\n' "$(git rev-parse HEAD)"
+            printf '  "artifacts": [\n'
+            first=1
+            for f in dist/*.deb; do
+              name="$(basename "$f")"
+              sha="$(sha256sum "$f" | awk '{print $1}')"
+              [ "$first" = "1" ] || printf ',\n'
+              first=0
+              printf '    {"name": "%s", "sha256": "%s"}' "$name" "$sha"
+            done
+            printf '\n  ]\n'
+            printf '}\n'
+          } > dist/manifest.json
+
+          ls -lh dist/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          draft: false
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          files: |
+            dist/*.deb
+            dist/SHA256SUMS
+            dist/manifest.json
+          generate_release_notes: true
