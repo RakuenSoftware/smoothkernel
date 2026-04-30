@@ -1,15 +1,16 @@
 # Kernel config
 
-The canonical `.config` for `linux-smoothkernel`. One config for every Smooth* flavor. See [`KERNEL.md`](KERNEL.md) for the one-kernel rationale and [`bumping-kernel.md`](bumping-kernel.md) for how the config carries forward across kernel bumps.
+The canonical `.config` files for `linux-smoothkernel`. One config per Debian architecture, shared by every Smooth* flavor. See [`KERNEL.md`](KERNEL.md) for the one-kernel-line rationale and [`bumping-kernel.md`](bumping-kernel.md) for how the configs carry forward across kernel bumps.
 
 ## Custody
 
-The config lives in smoothkernel (colocated with the recipes that consume it), committed as `configs/smooth-amd64.config`. Versioned alongside the patch series for that kernel version.
+The configs live in smoothkernel (colocated with the recipes that consume them), committed as `configs/smooth-amd64.config` and `configs/smooth-arm64.config`. They are versioned alongside the patch series for that kernel version.
 
 ```
 smoothkernel/
 ├── configs/
-│   ├── smooth-amd64.config          The canonical config, current kernel line
+│   ├── smooth-amd64.config          Canonical amd64 config, current kernel line
+│   ├── smooth-arm64.config          Canonical arm64 config, current kernel line
 │   └── <kernel-version>/            Archived configs from prior kernel bumps
 ├── patches/
 │   ├── cachyos-<kernel-version>/    Vendored base lane (`0001-bore.patch` on pristine kernel.org today)
@@ -29,7 +30,8 @@ The following settings are load-bearing across every flavor. Changing one has cr
 | `CONFIG_HZ` | `1000` | UI/game responsiveness; negligible server impact on modern hardware |
 | `CONFIG_SCHED_BORE` | `y` | BORE scheduler enabled by the vendored base lane; default `y` |
 | `CONFIG_SCHED_EXT` | `m` | sched-ext available as a module; not default, escape hatch |
-| Microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
+| amd64 microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
+| arm64 baseline | generic Debian arm64 | Broadest viable arm64 support; board-specific boot enablement is outside this config |
 | `CONFIG_MODULE_SIG_FORCE` | `y` | Shipped kernels reject unsigned modules; release-built packaged modules must be signed in the signing-capable release path and DKMS modules are signed on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
 | `CONFIG_DEBUG_INFO_BTF` | `n` | Set by `STRIP_DEBUG_INFO=1` default in build-kernel.sh |
 | `CONFIG_SYSTEM_TRUSTED_KEYS` | build-time injected Rakuen module cert | Release builds inject the public cert for packaged-module signing; the checked-in config does not carry secrets or machine-local paths |
@@ -101,9 +103,9 @@ Adding a row is a strong signal to reconsider whether the one-kernel model is st
 
 When a kernel bump introduces new config symbols (common on major bumps):
 
-1. `make kernel-config-update` refreshes the patched tree, runs `olddefconfig`, reapplies the SmoothKernel profile, and writes the resulting config back into `configs/`.
+1. `make kernel-config-update-all` refreshes the patched tree, runs `olddefconfig`, reapplies the SmoothKernel profile, and writes the resulting configs back into `configs/`.
 2. Review the resulting diff. Sometimes a new option defaults to `y` and bloats the image; sometimes to `n` and disables something we want. Check the diff manually.
-3. Commit the updated `configs/smooth-amd64.config` and `configs/<kernel-version>/smooth-amd64.config` as part of the kernel-bump PR.
+3. Commit the updated `configs/smooth-<arch>.config` and `configs/<kernel-version>/smooth-<arch>.config` files as part of the kernel-bump PR.
 
 ## Out-of-tree modules
 

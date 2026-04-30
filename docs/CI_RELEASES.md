@@ -28,12 +28,13 @@ The workflow:
 1. Checks out the repository.
 2. Installs build dependencies.
 3. Copies `examples/smooth.env` to `build.env`.
-4. Runs `make kernel`.
-5. Runs `make zfs`.
-6. Copies `out/*.deb` to `dist/`.
-7. Writes `dist/SHA256SUMS`.
-8. Writes `dist/manifest.json`.
-9. Publishes a GitHub Release with `.deb`, checksum, and manifest assets.
+4. Runs `make kernel` for amd64 on `ubuntu-24.04` and arm64 on `ubuntu-24.04-arm`.
+5. Runs `make zfs` for each architecture.
+6. Uploads per-architecture package artifacts.
+7. Merges amd64 and arm64 packages into `dist/`, skipping duplicate `_all.deb` assets.
+8. Writes `dist/SHA256SUMS`.
+9. Writes `dist/manifest.json` with artifact architectures and sha256 values.
+10. Publishes a GitHub Release with `.deb`, checksum, and manifest assets.
 
 ## Manifest
 
@@ -44,7 +45,8 @@ release contents. It records:
 - Kernel version.
 - ZFS version.
 - Git commit.
-- Artifact names and sha256 values.
+- Supported architectures.
+- Artifact names, Debian architecture suffixes, and sha256 values.
 
 Consumers should still verify package signatures and apt repository metadata
 when installing from the Smooth* apt repo. The GitHub Release manifest is an

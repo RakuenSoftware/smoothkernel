@@ -8,6 +8,7 @@
 #   ZFS_VERSION       e.g. 2.4.1
 #
 # Optional env:
+#   DEB_ARCH          Debian architecture being built (default host arch)
 #   OUT_DIR           where the .debs land (default $(pwd)/out)
 #   BUILD_THREADS     -j N for make (default $(nproc))
 
@@ -15,11 +16,12 @@ set -euo pipefail
 
 : "${ZFS_VERSION:?ZFS_VERSION required (e.g. 2.4.1)}"
 
+DEB_ARCH="${DEB_ARCH:-$(dpkg --print-architecture 2>/dev/null || uname -m)}"
 OUT_DIR="${OUT_DIR:-$(pwd)/out}"
 BUILD_THREADS="${BUILD_THREADS:-$(nproc)}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD_DIR="$ROOT/build/zfs-$ZFS_VERSION"
+BUILD_DIR="$ROOT/build/zfs-$ZFS_VERSION-$DEB_ARCH"
 TARBALL="zfs-$ZFS_VERSION.tar.gz"
 URL="https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/$TARBALL"
 
@@ -37,6 +39,8 @@ if [[ ! -d "$SRC_DIR" ]]; then
 fi
 
 cd "$SRC_DIR"
+
+echo "==> build arch: DEB_ARCH=$DEB_ARCH"
 
 if [[ ! -f Makefile ]]; then
     echo "==> autogen + configure"

@@ -51,9 +51,11 @@ Desktop and HTPC also enable `i386` before the flavor meta-package is installed 
 
 This matters because packages such as `steam-installer`, `nvidia-driver-*`, `intel-media-va-driver-non-free`, and `ttf-mscorefonts-installer` are not satisfiable from plain Debian `main`.
 
-## Architecture: amd64-only at v1
+## Architecture: amd64 + arm64
 
-Matches the existing `apt-repo/README.md`. Arm64 is a deferred addition; the kernel build would be the largest new pipeline to stand up for it.
+The `common` suite carries amd64 and arm64 builds for packages with native code. Architecture-independent packages remain `_all.deb` and are published once.
+
+SmoothKernel is built and released for both architectures in GitHub Actions. The apt repo promotion path consumes the same GitHub release assets and adds both `_amd64.deb` and `_arm64.deb` packages to `common`.
 
 ## Pinning
 

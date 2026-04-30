@@ -1,12 +1,12 @@
 # linux-smoothkernel
 
-The kernel for every Smooth* flavor. One source tree, one `.config`, one set of `.deb` outputs installed identically on SmoothNAS, SmoothRouter, SmoothHTPC, and SmoothDesktop.
+The kernel for every Smooth* flavor. One source tree, per-architecture `.config` files, and one shared kernel line installed by SmoothNAS, SmoothRouter, SmoothHTPC, and SmoothDesktop.
 
 This doc is the design rationale and maintenance runbook. For the local build guide see [`BUILDING.md`](BUILDING.md); for the mechanical bump runbook see [`bumping-kernel.md`](bumping-kernel.md). For the current canonical `.config` shape see [`kernel-config.md`](kernel-config.md).
 
 ## What it is
 
-The current harness emits the standard `bindeb-pkg` kernel artifacts for one shared `LOCALVERSION=-smoothkernel` kernel line. In practice that means the expected versioned image, headers, and `linux-libc-dev` packages for `x.y.z-smoothkernel`, plus any optional debug artifacts `bindeb-pkg` decides to emit.
+The current harness emits the standard `bindeb-pkg` kernel artifacts for one shared `LOCALVERSION=-smoothkernel` kernel line on each supported Debian architecture. In practice that means the expected versioned image, headers, and `linux-libc-dev` packages for `x.y.z-smoothkernel`, plus any optional debug artifacts `bindeb-pkg` decides to emit.
 
 The Smooth* apt layer may expose stable metapackages such as `linux-image-smoothkernel`, but this repository builds the versioned kernel packages.
 
@@ -24,9 +24,9 @@ The intuition that NAS, router, HTPC, and desktop "need different kernels" is mo
 | Scheduler (BORE vs CFS vs sched-ext default) | Yes — patch + compile-time | BORE patched in, selected as default |
 | Timer frequency | Yes — compile-time | `CONFIG_HZ=1000` |
 
-The compile-time deltas are settings where *one value works for everyone* once you pick the right scheduler. BORE makes `PREEMPT=y` cheap enough on servers that it's not a real tradeoff, and `HZ=1000` has negligible server impact on modern hardware. So: one binary.
+The compile-time deltas are settings where *one value works for everyone* once you pick the right scheduler. BORE makes `PREEMPT=y` cheap enough on servers that it's not a real tradeoff, and `HZ=1000` has negligible server impact on modern hardware. So: one kernel policy, built per architecture.
 
-The payoff: one rebase per upstream bump instead of four, one .config to maintain, one support surface to reproduce bugs against.
+The payoff: one rebase per upstream bump instead of four, one config policy to maintain, one support surface to reproduce bugs against.
 
 ## Patch sources
 
@@ -59,17 +59,18 @@ that were not clean “drop-in” Nobara picks.
 
 ### Explicitly not applied
 
-- CachyOS's aggressive compile flags (`-O3`, LTO). We build the kernel O2; microarch is x86-64-v2. Hardware inclusivity beats last-percent perf, especially for HTPC/NAS on cheap/old boxes.
+- CachyOS's aggressive compile flags (`-O3`, LTO). We build the kernel O2; amd64 microarch is x86-64-v2. Hardware inclusivity beats last-percent perf, especially for HTPC/NAS on cheap/old boxes.
 - Debian-specific kernel patches (module signing enforcement defaults, etc.) are *not* carried — we build from kernel.org sources, not Debian's source package.
 
 ## Hardware baseline
 
-- **x86-64-v2** — baseline ISA. Covers basically every x86 box from ~2009+. A lot of HTPC hardware (repurposed desktops) and NAS hardware (low-end Intel NUCs, older Xeons) is v2 but not v3.
+- **amd64:** x86-64-v2 baseline ISA. Covers basically every x86 box from ~2009+. A lot of HTPC hardware (repurposed desktops) and NAS hardware (low-end Intel NUCs, older Xeons) is v2 but not v3.
+- **arm64:** generic Debian arm64 baseline. Prefer UEFI/SBSA-class systems for first support; SBC enablement is target-specific and may require firmware/bootloader work outside the kernel package.
 - Optional `linux-smoothkernel-v3` variant could come later if there's measurable benefit and demand. Not v1.
 
 ## Configuration
 
-One canonical `.config`, versioned in smoothkernel. See [`kernel-config.md`](kernel-config.md) for the shape and rationale. Key points:
+One canonical `.config` per Debian architecture, versioned in smoothkernel. See [`kernel-config.md`](kernel-config.md) for the shape and rationale. Key points:
 
 - `CONFIG_PREEMPT=y`
 - `CONFIG_HZ=1000`
@@ -82,7 +83,7 @@ Filesystems built in: ext4, xfs, btrfs, bcachefs. ZFS stays DKMS (CDDL/GPL).
 
 ## Build flow
 
-`recipes/build-kernel.sh` fetches a kernel.org tarball, applies the ordered vendored patch lanes, seeds the canonical `.config`, and runs `bindeb-pkg`:
+`recipes/build-kernel.sh` fetches a kernel.org tarball, applies the ordered vendored patch lanes, seeds the selected architecture's canonical `.config`, and runs `bindeb-pkg`:
 
 ```
 kernel.org tarball
@@ -95,7 +96,7 @@ apply Nobara HID cherry-picks
     ↓
 apply patches/post-nobara-<kernel-version>
     ↓
-seed canonical .config
+seed canonical smooth-<arch>.config
     ↓
 make olddefconfig
     ↓
@@ -109,10 +110,10 @@ release-grade signing gate, when wired in CI
     ↓
 linux-image-<version>-smoothkernel_*.deb,
 linux-headers-<version>-smoothkernel_*.deb,
-linux-libc-dev_*.deb in out/
+linux-libc-dev_*.deb in out/<arch>/
 ```
 
-The `build.env` contract is `KERNEL_VERSION`, `LOCALVERSION`, and `ZFS_VERSION`, plus the patch-lane names — defaults pick the vendored lanes for the current `KERNEL_VERSION`, and overrides are only needed to swap in a different lane:
+The `build.env` contract is `KERNEL_VERSION`, `LOCALVERSION`, `ZFS_VERSION`, and `DEB_ARCH`, plus the patch-lane names — defaults pick the vendored lanes for the current `KERNEL_VERSION`, and overrides are only needed to swap in a different lane:
 
 - `CACHYOS_PATCHSET=cachyos-<kernel-version>`
 - `NOBARA_PATCHSET=nobara-picks`
@@ -131,7 +132,7 @@ When a new point release arrives:
 - Refresh the base lane from the relevant downstream source material.
 - Rebase or refresh any Nobara picks that still apply.
 - Rebase or refresh the post-Nobara carry patches.
-- Run `make kernel-config-update`, then `make kernel zfs`.
+- Run `make kernel-config-update-all`, then build kernel and ZFS packages for each supported architecture.
 
 Major version bumps (e.g. 6.x → 7.0) follow the conservative rule from [`bumping-kernel.md`](bumping-kernel.md): wait until `.1` minimum before shipping to users.
 

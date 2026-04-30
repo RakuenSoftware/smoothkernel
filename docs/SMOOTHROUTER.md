@@ -156,7 +156,7 @@ net.ipv4.tcp_syncookies = 1
 - 2+ NICs (any speed; modern boxes with 2.5GbE/10GbE well-supported)
 - 2GB+ RAM (1GB technically works; 2GB is comfortable with conntrack + wireguard + UI)
 - 8GB+ storage for OS + logs
-- amd64 only at v1 (arm64 is a strong future target for low-power routers — see [`ARCHITECTURE.md`](ARCHITECTURE.md))
+- amd64 and arm64 packages; low-power arm64 routers are a first-class target once specific hardware is validated
 
 No GPU requirements. No audio requirements.
 

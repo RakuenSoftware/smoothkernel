@@ -2,7 +2,7 @@
 
 The procedure when moving `linux-smoothkernel` to a newer kernel version. Applies to both major bumps (`6.x → 7.x`) and point bumps (`6.18.22 → 6.18.30`).
 
-One kernel across all four flavors, so one bump is a single coordinated edit — no per-flavor version skew.
+One kernel line across all four flavors, so one bump is a single coordinated edit — no per-flavor version skew.
 
 ## When to bump
 
@@ -67,20 +67,22 @@ Vendoring keeps builds reproducible and CI-offline-safe. The current pristine-ke
 ### 3. Update the canonical config
 
 ```sh
-make kernel-config-update     # runs `make olddefconfig` against the new kernel
+make kernel-config-update-all # runs `make olddefconfig` against the new kernel for each arch
 ```
 
-Review the diff in `configs/smooth-amd64.config`. New `CONFIG_*` symbols default to the kernel's preference; check that defaults don't regress the invariants in [`kernel-config.md`](kernel-config.md) (PREEMPT=y, HZ=1000, SCHED_BORE=y, etc.). `make kernel-config-update` also refreshes `configs/<kernel-version>/smooth-amd64.config`.
+Review the diff in `configs/smooth-*.config`. New `CONFIG_*` symbols default to the kernel's preference; check that defaults don't regress the invariants in [`kernel-config.md`](kernel-config.md) (PREEMPT=y, HZ=1000, SCHED_BORE=y, etc.). `make kernel-config-update-all` also refreshes `configs/<kernel-version>/smooth-*.config`.
 
 ### 4. Build and verify
 
 ```sh
-make kernel     # builds versioned linux-image/header packages plus linux-libc-dev
-make zfs        # builds zfs-dkms_*.deb against the new KERNEL_VERSION
-ls out/
+make kernel DEB_ARCH=amd64
+make kernel DEB_ARCH=arm64
+make zfs DEB_ARCH=amd64
+make zfs DEB_ARCH=arm64
+find out -maxdepth 2 -name '*.deb'
 ```
 
-Both must build clean. Kernel build failures are usually patch-conflict or config drift; ZFS build failures are usually a kernel-API break that OpenZFS hasn't caught up to yet.
+Both architectures must build clean. Kernel build failures are usually patch-conflict or config drift; ZFS build failures are usually a kernel-API break that OpenZFS hasn't caught up to yet.
 
 Local builds are sufficient for patch/config bring-up. The promotable artifact still comes from the release path that satisfies the signing contract in [`signing.md`](signing.md) and [`CI_RELEASES.md`](CI_RELEASES.md).
 
@@ -99,7 +101,7 @@ The detailed DKMS consumer contract is in [`DKMS.md`](DKMS.md).
 ### 6. Deploy to a test box
 
 ```sh
-scp out/*.deb test-box:/tmp/
+scp out/<arch>/*.deb test-box:/tmp/
 ssh test-box 'sudo dpkg -i /tmp/linux-*_*.deb /tmp/zfs*.deb /tmp/lib*.deb'
 ssh test-box 'sudo reboot'
 ```
@@ -130,8 +132,8 @@ Publish the `.deb`s to the apt repo's `common` suite via the usual path document
 
 ```sh
 cd ../apt-repo
-scripts/add-package.sh common ../smoothkernel/out/linux-*.deb
-scripts/add-package.sh common ../smoothkernel/out/zfs*.deb ../smoothkernel/out/lib*.deb
+scripts/add-package.sh common ../smoothkernel/out/*/linux-*.deb
+scripts/add-package.sh common ../smoothkernel/out/*/zfs*.deb ../smoothkernel/out/*/lib*.deb
 git add pool/ dists/
 git commit -m "common: linux-smoothkernel $KERNEL_VERSION, zfs $ZFS_VERSION"
 git push

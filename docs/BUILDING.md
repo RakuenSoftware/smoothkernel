@@ -7,8 +7,8 @@ these packages through apt.
 ## Build Host
 
 The supported build host is Debian or Ubuntu with a modern toolchain. The GitHub
-release workflow currently runs on `ubuntu-24.04`, so that is the reference CI
-environment.
+release workflow currently runs amd64 builds on `ubuntu-24.04` and arm64 builds
+on `ubuntu-24.04-arm`, so those are the reference CI environments.
 
 Install the same dependency set used by CI:
 
@@ -42,7 +42,7 @@ make show
 
 ```sh
 make ENV_FILE=/path/to/my-build.env show
-make ENV_FILE=/path/to/my-build.env kernel
+make ENV_FILE=/path/to/my-build.env kernel DEB_ARCH=amd64
 ```
 
 ## Environment Variables
@@ -52,7 +52,8 @@ make ENV_FILE=/path/to/my-build.env kernel
 | `KERNEL_VERSION` | yes | none | Kernel.org stable version to build, for example `6.19.12`. |
 | `LOCALVERSION` | yes | none | Kernel release suffix. The checked-in examples use `-smoothkernel`, producing package names such as `linux-image-6.19.12-smoothkernel`. |
 | `ZFS_VERSION` | yes for `make zfs` | none | OpenZFS release version, for example `2.4.1`. |
-| `CONFIG_SOURCE` | yes for `make kernel` | `configs/smooth-amd64.config` in the example | Seed `.config`. |
+| `DEB_ARCH` | no | `amd64` | Debian architecture to build: `amd64` or `arm64`. |
+| `CONFIG_SOURCE` | no | `configs/smooth-$(DEB_ARCH).config` in the example | Seed `.config`. |
 | `CACHYOS_PATCHSET` | no | `cachyos-$(KERNEL_VERSION)` | First patch lane under `patches/`. |
 | `NOBARA_PATCHSET` | no | `nobara-picks` | Second patch lane under `patches/`. |
 | `POST_NOBARA_PATCHSET` | no | `post-nobara-$(KERNEL_VERSION)` | Final patch lane under `patches/`. |
@@ -66,7 +67,8 @@ make ENV_FILE=/path/to/my-build.env kernel
 ## Kernel Build
 
 ```sh
-make kernel
+make kernel DEB_ARCH=amd64
+make kernel DEB_ARCH=arm64
 ```
 
 The recipe:
@@ -74,7 +76,7 @@ The recipe:
 1. Downloads `linux-$KERNEL_VERSION.tar.xz` from kernel.org.
 2. Downloads kernel.org `sha256sums.asc`.
 3. Checks the tarball hash against that file.
-4. Extracts a clean source tree under `build/kernel-$KERNEL_VERSION/`.
+4. Extracts a clean source tree under `build/kernel-$KERNEL_VERSION-$DEB_ARCH/`.
 5. Applies the three ordered patch lanes.
 6. Seeds `.config` from `CONFIG_SOURCE`.
 7. Runs `make olddefconfig`.
@@ -114,15 +116,15 @@ Use this when bumping kernel versions or when a patch lane adds/removes config
 symbols:
 
 ```sh
-make kernel-config-update
+make kernel-config-update-all
 ```
 
 The target performs the same source/patch/config setup as `make kernel`, then
 writes the resulting config to:
 
 ```text
-configs/smooth-amd64.config
-configs/<kernel-version>/smooth-amd64.config
+configs/smooth-<arch>.config
+configs/<kernel-version>/smooth-<arch>.config
 ```
 
 Always review the diff. New symbols can silently add unwanted drivers, disable
@@ -131,7 +133,8 @@ needed support, or drift from the invariants in [kernel-config.md](kernel-config
 ## OpenZFS Build
 
 ```sh
-make zfs
+make zfs DEB_ARCH=amd64
+make zfs DEB_ARCH=arm64
 ```
 
 The recipe downloads the configured OpenZFS release, runs its packaging build,
@@ -147,7 +150,7 @@ Kernel selection is still gated by OpenZFS compatibility. See
 On a disposable test machine:
 
 ```sh
-scp out/*.deb test-box:/tmp/
+scp out/<arch>/*.deb test-box:/tmp/
 ssh test-box 'sudo dpkg -i /tmp/*.deb'
 ssh test-box 'sudo reboot'
 ```

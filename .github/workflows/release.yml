@@ -2,7 +2,7 @@ name: Release
 
 # SmoothKernel publishes the kernel + OpenZFS .deb artifacts that every
 # Smooth* flavour (SmoothNAS, SmoothRouter, SmoothHTPC, SmoothDesktop)
-# installs identically. Building the kernel happens here, once, per
+# installs. Building happens once per supported Debian architecture per
 # SmoothKernel commit; consuming repos download the published assets.
 #
 # Triggers:
@@ -20,41 +20,25 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  meta:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      name: ${{ steps.meta.outputs.name }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      kernel_version: ${{ steps.meta.outputs.kernel_version }}
+      zfs_version: ${{ steps.meta.outputs.zfs_version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
-            libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils \
-            autoconf automake libtool gawk alien dh-python po-debconf \
-            uuid-dev libudev-dev libblkid-dev libtirpc-dev libcurl4-openssl-dev \
-            libaio-dev libattr1-dev libffi-dev zlib1g-dev libpam0g-dev \
-            python3 python3-dev python3-cffi python3-setuptools python3-packaging \
-            python3-distlib parted
-
-      - name: Seed build.env
-        run: cp examples/smooth.env build.env
-
-      - name: Build kernel
-        run: make kernel
-
-      - name: Build OpenZFS
-        run: make zfs
-
       - name: Determine release tag
         id: meta
         run: |
           set -euo pipefail
-          KERNEL_VERSION="$(awk -F= '/^KERNEL_VERSION=/ {gsub(/[ \t]/,""); print $2; exit}' build.env)"
-          ZFS_VERSION="$(awk -F= '/^ZFS_VERSION=/ {gsub(/[ \t]/,""); print $2; exit}' build.env)"
+          KERNEL_VERSION="$(awk -F= '/^KERNEL_VERSION=/ {gsub(/[ \t]/,""); print $2; exit}' examples/smooth.env)"
+          ZFS_VERSION="$(awk -F= '/^ZFS_VERSION=/ {gsub(/[ \t]/,""); print $2; exit}' examples/smooth.env)"
           SHORT_SHA="$(git rev-parse --short HEAD)"
 
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
@@ -73,30 +57,116 @@ jobs:
           echo "kernel_version=${KERNEL_VERSION}" >> "$GITHUB_OUTPUT"
           echo "zfs_version=${ZFS_VERSION}" >> "$GITHUB_OUTPUT"
 
+  build:
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deb_arch: amd64
+            runner: ubuntu-24.04
+          - deb_arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
+            libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils \
+            autoconf automake libtool gawk alien dh-python po-debconf \
+            uuid-dev libudev-dev libblkid-dev libtirpc-dev libcurl4-openssl-dev \
+            libaio-dev libattr1-dev libffi-dev zlib1g-dev libpam0g-dev \
+            python3 python3-dev python3-cffi python3-setuptools python3-packaging \
+            python3-distlib parted
+
+      - name: Seed build.env
+        run: cp examples/smooth.env build.env
+
+      - name: Build kernel
+        run: make kernel DEB_ARCH=${{ matrix.deb_arch }} BUILD_THREADS="$(nproc)"
+
+      - name: Build OpenZFS
+        run: make zfs DEB_ARCH=${{ matrix.deb_arch }} BUILD_THREADS="$(nproc)"
+
       - name: Stage release artifacts
-        id: stage
+        run: |
+          set -euo pipefail
+          mkdir -p "dist/${{ matrix.deb_arch }}"
+          cp "out/${{ matrix.deb_arch }}"/*.deb "dist/${{ matrix.deb_arch }}/"
+          (cd "dist/${{ matrix.deb_arch }}" && sha256sum *.deb > "SHA256SUMS.${{ matrix.deb_arch }}")
+          ls -lh "dist/${{ matrix.deb_arch }}/"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.deb_arch }}
+          path: dist/${{ matrix.deb_arch }}
+          if-no-files-found: error
+
+  release:
+    needs: [meta, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-input
+
+      - name: Merge release artifacts
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp out/*.deb dist/
+
+          for arch in amd64 arm64; do
+            src="release-input/packages-${arch}"
+            test -d "$src"
+            for f in "$src"/*.deb; do
+              name="$(basename "$f")"
+              if [[ "$name" == *_all.deb && -e "dist/$name" ]]; then
+                echo "Skipping duplicate arch-all package from ${arch}: $name"
+                continue
+              fi
+              if [[ -e "dist/$name" ]]; then
+                echo "ERROR: duplicate release asset name: $name" >&2
+                exit 1
+              fi
+              cp "$f" dist/
+            done
+          done
+
           (cd dist && sha256sum *.deb > SHA256SUMS)
 
           # manifest.json lets consumers discover what's in the release
           # without parsing filenames. Lists every .deb and its sha256.
           {
             printf '{\n'
-            printf '  "tag": "%s",\n' "${{ steps.meta.outputs.tag }}"
-            printf '  "kernel_version": "%s",\n' "${{ steps.meta.outputs.kernel_version }}"
-            printf '  "zfs_version": "%s",\n' "${{ steps.meta.outputs.zfs_version }}"
-            printf '  "commit": "%s",\n' "$(git rev-parse HEAD)"
+            printf '  "tag": "%s",\n' "${{ needs.meta.outputs.tag }}"
+            printf '  "kernel_version": "%s",\n' "${{ needs.meta.outputs.kernel_version }}"
+            printf '  "zfs_version": "%s",\n' "${{ needs.meta.outputs.zfs_version }}"
+            printf '  "commit": "%s",\n' "${GITHUB_SHA}"
+            printf '  "architectures": ["amd64", "arm64"],\n'
             printf '  "artifacts": [\n'
             first=1
             for f in dist/*.deb; do
               name="$(basename "$f")"
+              arch="${name%.deb}"
+              arch="${arch##*_}"
               sha="$(sha256sum "$f" | awk '{print $1}')"
               [ "$first" = "1" ] || printf ',\n'
               first=0
-              printf '    {"name": "%s", "sha256": "%s"}' "$name" "$sha"
+              printf '    {"name": "%s", "architecture": "%s", "sha256": "%s"}' "$name" "$arch" "$sha"
             done
             printf '\n  ]\n'
             printf '}\n'
@@ -107,10 +177,10 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.name }}
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: ${{ needs.meta.outputs.name }}
           draft: false
-          prerelease: ${{ steps.meta.outputs.prerelease }}
+          prerelease: ${{ needs.meta.outputs.prerelease }}
           files: |
             dist/*.deb
             dist/SHA256SUMS
