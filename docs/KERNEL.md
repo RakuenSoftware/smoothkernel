@@ -2,11 +2,13 @@
 
 The kernel for every Smooth* flavor. One source tree, one `.config`, one set of `.deb` outputs installed identically on SmoothNAS, SmoothRouter, SmoothHTPC, and SmoothDesktop.
 
-This doc is the design rationale and maintenance runbook. For the mechanical build steps see [`bumping-kernel.md`](bumping-kernel.md). For the current canonical `.config` shape see [`kernel-config.md`](kernel-config.md).
+This doc is the design rationale and maintenance runbook. For the local build guide see [`BUILDING.md`](BUILDING.md); for the mechanical bump runbook see [`bumping-kernel.md`](bumping-kernel.md). For the current canonical `.config` shape see [`kernel-config.md`](kernel-config.md).
 
 ## What it is
 
-The current harness emits the standard `bindeb-pkg` kernel artifacts for one shared `LOCALVERSION=-smooth` kernel line. In practice that means the expected image, headers, and `linux-libc-dev` packages for `x.y.z-smooth`, plus any optional debug artifacts `bindeb-pkg` decides to emit.
+The current harness emits the standard `bindeb-pkg` kernel artifacts for one shared `LOCALVERSION=-smoothkernel` kernel line. In practice that means the expected versioned image, headers, and `linux-libc-dev` packages for `x.y.z-smoothkernel`, plus any optional debug artifacts `bindeb-pkg` decides to emit.
+
+The Smooth* apt layer may expose stable metapackages such as `linux-image-smoothkernel`, but this repository builds the versioned kernel packages.
 
 ## Why one kernel
 
@@ -30,7 +32,7 @@ The payoff: one rebase per upstream bump instead of four, one .config to maintai
 
 ### Base lane: pristine kernel.org + vendored downstream patches
 
-SmoothKernel builds from a pristine kernel.org tarball. Downstream scheduler and kernel adjustments are then applied from vendored patch lanes committed in-tree.
+SmoothKernel builds from a pristine kernel.org tarball. Downstream scheduler and kernel adjustments are then applied from vendored patch lanes committed in-tree. The patch custody rules are in [`PATCHES.md`](PATCHES.md).
 
 For the current `6.19.12` line, the base lane is derived from CachyOS's scheduler work but intentionally uses `sched/0001-bore.patch` rather than `0001-bore-cachy.patch`. `bore-cachy` expects additional Cachy scheduler deltas that are not present in a pristine kernel.org tree; `0001-bore.patch` applies cleanly and gives us the BORE default without inheriting hidden source deltas.
 
@@ -103,9 +105,11 @@ apply appliance-trim (net-tuning, server-tuning — already in build-kernel.sh)
     ↓
 make bindeb-pkg
     ↓
-release build signs packaged modules
+release-grade signing gate, when wired in CI
     ↓
-linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb in out/
+linux-image-<version>-smoothkernel_*.deb,
+linux-headers-<version>-smoothkernel_*.deb,
+linux-libc-dev_*.deb in out/
 ```
 
 The `build.env` contract is `KERNEL_VERSION`, `LOCALVERSION`, and `ZFS_VERSION`, plus the patch-lane names — defaults pick the vendored lanes for the current `KERNEL_VERSION`, and overrides are only needed to swap in a different lane:
@@ -114,9 +118,9 @@ The `build.env` contract is `KERNEL_VERSION`, `LOCALVERSION`, and `ZFS_VERSION`,
 - `NOBARA_PATCHSET=nobara-picks`
 - `POST_NOBARA_PATCHSET=post-nobara-<kernel-version>`
 
-`LOCALVERSION=-smooth` replaces `-smoothnas-lts` (etc.).
+`LOCALVERSION=-smoothkernel` replaces per-flavor suffixes such as `-smoothnas-lts`.
 
-DKMS modules are not signed here; they are signed on the target system by `smooth-secureboot` after each DKMS rebuild.
+DKMS modules are not signed here; they are signed on the target system by `smooth-secureboot` after each DKMS rebuild. Release-built packaged modules require the signing-capable release path described in [`signing.md`](signing.md) and [`CI_RELEASES.md`](CI_RELEASES.md).
 
 ## Rebase cadence
 
@@ -133,20 +137,20 @@ Major version bumps (e.g. 6.x → 7.0) follow the conservative rule from [`bumpi
 
 ## DKMS modules
 
-Every flavor that needs out-of-tree kernel code consumes `linux-headers-smoothkernel` via DKMS. Current consumers:
+Every flavor that needs out-of-tree kernel code consumes the versioned SmoothKernel headers package, normally via a stable apt metapackage, and DKMS builds against `/lib/modules/$(uname -r)/build`. Current consumers:
 
 - `zfs-dkms` — SmoothNAS. OpenZFS tracks kernel compatibility per release; see [`bumping-kernel.md`](bumping-kernel.md) for the version-pairing rule.
 - `smoothfs` — SmoothNAS-specific filesystem module. Uses the `compat.h` pattern (see [`kernel-config.md`](kernel-config.md)).
 - NVIDIA proprietary — optional on HTPC/desktop. Ships via Debian's `nvidia-driver-*` packages (mirrored or pulled directly) which are DKMS-compatible.
 
-New DKMS modules follow the `templates/` pattern already in smoothkernel. Nothing changes in the harness.
+New DKMS modules follow the `templates/` pattern already in smoothkernel. See [`DKMS.md`](DKMS.md).
 
 ## Relationship to the existing harness
 
 The existing smoothkernel harness (recipes/, templates/, Makefile) remains the right tool — the one-kernel model simplifies its *consumer* shape, not the harness itself. Changes:
 
 - Canonical `.config` becomes part of smoothkernel (or a sibling `smoothkernel-config` repo), not per-flavor
-- `LOCALVERSION` convention collapses to `-smooth`
+- `LOCALVERSION` convention collapses to `-smoothkernel`
 - Add an ordered patch-lane step between extract and config-seed
 - `build.env` grows patch-lane variables
 - `examples/smooth.env` is the canonical sample env; `examples/smoothnas.env` remains only as a compatibility alias

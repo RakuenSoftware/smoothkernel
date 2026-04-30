@@ -13,7 +13,7 @@ NAS appliance flavor. This doc is the Smooth* cross-repo contract for SmoothNAS:
 | `smoothfs` | `SmoothNAS` | Out-of-tree kernel module (DKMS) |
 | `smoothfs-utils` | `SmoothNAS` | Userspace tools for smoothfs |
 
-Shared from `common`: `linux-smoothkernel`, `linux-headers-smoothkernel`, `linux-firmware-smooth`, `smooth-base`, `zfs-dkms` (if we host it; otherwise pulled from Debian), `smoothgui-assets` (optional — cached smoothgui build for offline installer).
+Shared from `common`: the versioned SmoothKernel image and headers packages (optionally via stable metapackages), `linux-firmware-smooth`, `smooth-base`, `zfs-dkms` (if we host it; otherwise pulled from Debian), `smoothgui-assets` (optional — cached smoothgui build for offline installer).
 
 ## Meta-package dependencies
 
@@ -21,8 +21,8 @@ Shared from `common`: `linux-smoothkernel`, `linux-headers-smoothkernel`, `linux
 
 ```
 Depends:
- linux-image-smoothkernel,
- linux-headers-smoothkernel,
+ linux-image-<current>-smoothkernel | linux-image-smoothkernel,
+ linux-headers-<current>-smoothkernel | linux-headers-smoothkernel,
  linux-firmware-smooth,
  smooth-base,
  smooth-secureboot,
@@ -123,7 +123,7 @@ Everything here is runtime, kernel-neutral, and independently installable — so
 
 ## ZFS posture
 
-`zfs-dkms` from DKMS, built against `linux-headers-smoothkernel`. OpenZFS release pairing follows the rule in [`bumping-kernel.md`](bumping-kernel.md) — kernel version ≤ the OpenZFS release's `Linux-Maximum`.
+`zfs-dkms` from DKMS, built against the installed SmoothKernel headers. OpenZFS release pairing follows the rule in [`bumping-kernel.md`](bumping-kernel.md): kernel version <= the OpenZFS release's `Linux-Maximum`.
 
 We can either:
 

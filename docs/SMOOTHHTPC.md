@@ -168,7 +168,7 @@ Smoothtv only configures HTPC-level concerns (display, audio output, network, up
 
 Identical to SmoothDesktop. Both pull `smooth-workstation`, which pulls `smooth-gfx`, which pulls the full Mesa stack + `linux-firmware-smooth` + VA/VDPAU/Vulkan drivers. See [`GRAPHICS.md`](GRAPHICS.md).
 
-NVIDIA: same situation as desktop — handled via Debian's non-free nvidia-driver, DKMS-built against `linux-smoothkernel-headers`.
+NVIDIA: same situation as desktop — handled via Debian's non-free nvidia-driver, DKMS-built against the installed SmoothKernel headers.
 
 ## HTPC-specific tuning (`smoothhtpc-tuning`)
 

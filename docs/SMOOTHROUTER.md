@@ -45,7 +45,7 @@ From `common`: `linux-smoothkernel`, `linux-firmware-smooth`, `smooth-base`.
 
 ```
 Depends:
- linux-image-smoothkernel,
+ linux-image-<current>-smoothkernel | linux-image-smoothkernel,
  linux-firmware-smooth,
  smooth-base,
  smooth-secureboot,

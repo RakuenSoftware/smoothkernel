@@ -30,7 +30,7 @@ The following settings are load-bearing across every flavor. Changing one has cr
 | `CONFIG_SCHED_BORE` | `y` | BORE scheduler enabled by the vendored base lane; default `y` |
 | `CONFIG_SCHED_EXT` | `m` | sched-ext available as a module; not default, escape hatch |
 | Microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
-| `CONFIG_MODULE_SIG_FORCE` | `y` | Shipped kernels reject unsigned modules; packaged modules are signed in CI and DKMS modules are signed on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
+| `CONFIG_MODULE_SIG_FORCE` | `y` | Shipped kernels reject unsigned modules; release-built packaged modules must be signed in the signing-capable release path and DKMS modules are signed on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
 | `CONFIG_DEBUG_INFO_BTF` | `n` | Set by `STRIP_DEBUG_INFO=1` default in build-kernel.sh |
 | `CONFIG_SYSTEM_TRUSTED_KEYS` | build-time injected Rakuen module cert | Release builds inject the public cert for packaged-module signing; the checked-in config does not carry secrets or machine-local paths |
 | `CONFIG_SYSTEM_REVOCATION_KEYS` | `""` | Explicitly managed by our release process rather than inherited from Debian packaging defaults |
@@ -107,9 +107,9 @@ When a kernel bump introduces new config symbols (common on major bumps):
 
 ## Out-of-tree modules
 
-Smooth* out-of-tree kernel modules (currently just `smoothfs`) use the `compat.h` shim pattern documented in the existing templates. See [`templates/compat.h.in`](../templates/compat.h.in) and the update steps in [`bumping-kernel.md`](bumping-kernel.md) for how to move `KERNEL_FLOOR_MAJOR`/`MINOR` across a bump.
+Smooth* out-of-tree kernel modules (currently just `smoothfs`) use the `compat.h` shim pattern documented in the existing templates. See [`templates/compat.h.in`](../templates/compat.h.in), [`DKMS.md`](DKMS.md), and the update steps in [`bumping-kernel.md`](bumping-kernel.md) for how to move `KERNEL_FLOOR_MAJOR`/`MINOR` across a bump.
 
-New out-of-tree modules in Smooth* repos follow the same pattern — copy the template, wire into the repo's `debian/` packaging, build via DKMS against `linux-headers-smoothkernel`.
+New out-of-tree modules in Smooth* repos follow the same pattern: copy the template, wire it into the repo's `debian/` packaging, and build via DKMS against the installed SmoothKernel headers.
 
 ## Non-goals
 

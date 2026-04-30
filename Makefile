@@ -34,7 +34,7 @@ help:
 	@echo ""
 	@echo "Required env (set in $(ENV_FILE) or shell):"
 	@echo "  KERNEL_VERSION    e.g. 6.18.22"
-	@echo "  LOCALVERSION      e.g. -smooth (must start with -)"
+	@echo "  LOCALVERSION      e.g. -smoothkernel (must start with -)"
 	@echo "  ZFS_VERSION       e.g. 2.4.1"
 	@echo "  CONFIG_SOURCE     path to canonical .config seed"
 	@echo ""

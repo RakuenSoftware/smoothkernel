@@ -42,7 +42,7 @@ Update `build.env`:
 
 ```sh
 KERNEL_VERSION=6.19.12
-LOCALVERSION=-smooth                # never changes under the one-kernel model
+LOCALVERSION=-smoothkernel          # never changes under the one-kernel model
 CACHYOS_PATCHSET=cachyos-6.19.12
 NOBARA_PATCHSET=nobara-picks
 POST_NOBARA_PATCHSET=post-nobara-6.19.12
@@ -75,14 +75,14 @@ Review the diff in `configs/smooth-amd64.config`. New `CONFIG_*` symbols default
 ### 4. Build and verify
 
 ```sh
-make kernel     # builds linux-{image,headers,libc-dev,modules}-smoothkernel_*.deb
+make kernel     # builds versioned linux-image/header packages plus linux-libc-dev
 make zfs        # builds zfs-dkms_*.deb against the new KERNEL_VERSION
 ls out/
 ```
 
 Both must build clean. Kernel build failures are usually patch-conflict or config drift; ZFS build failures are usually a kernel-API break that OpenZFS hasn't caught up to yet.
 
-Local builds are sufficient for patch/config bring-up. The promotable artifact still comes from signing-capable CI so packaged modules carry the Rakuen release signature described in [`signing.md`](signing.md).
+Local builds are sufficient for patch/config bring-up. The promotable artifact still comes from the release path that satisfies the signing contract in [`signing.md`](signing.md) and [`CI_RELEASES.md`](CI_RELEASES.md).
 
 ### 5. Update out-of-tree module compat shims
 
@@ -93,6 +93,8 @@ For each consuming repo with an out-of-tree module (`smoothfs` in SmoothNAS toda
    - Sweep dead pre-floor branches (anything inside `#if LINUX_VERSION_CODE < KERNEL_VERSION(<old_floor>, …)` is now unreachable — delete).
    - For new kernel APIs the new floor makes available and you want to adopt: add `#if LINUX_VERSION_CODE >= KERNEL_VERSION(<new_floor>, …)` blocks; expose them via `<prefix>_compat_*()` helpers.
 2. Update the module's `dkms.conf` `BUILD_EXCLUSIVE_KERNEL` regex if needed.
+
+The detailed DKMS consumer contract is in [`DKMS.md`](DKMS.md).
 
 ### 6. Deploy to a test box
 
@@ -124,7 +126,7 @@ Flavor-specific smoke tests live in their respective repos' `docs/OPERATIONS.md`
 
 ### 8. Promote to `common` main
 
-Publish the `.deb`s to the apt repo's `common` suite via the usual path (see [`../../apt-repo/README.md`](../../apt-repo/README.md)):
+Publish the `.deb`s to the apt repo's `common` suite via the usual path documented in the sibling `apt-repo` repository:
 
 ```sh
 cd ../apt-repo
