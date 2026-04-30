@@ -11,7 +11,7 @@ System-level architecture for the Smooth* family — four Debian-based appliance
 | **SmoothHTPC** | HTPC kiosk (boot-to-custom-shell fronting Kodi + emulators) | `smoothtv` shell (Tauri) |
 | **SmoothDesktop** | Windows-replacement desktop | KDE Plasma 6 + `smoothdesktop-theme` |
 
-All four run on the same base Debian, the same kernel, the same apt repo. The deltas are userspace.
+All four run on the same base Debian, the same kernel line, the same apt repo. The deltas are userspace.
 
 ## Dependency graph
 
@@ -67,9 +67,9 @@ Debian `trixie` (Debian 13) as the base for every flavor. Reasons:
 
 `non-free-firmware` is a first-class component under Debian 12+. Installers enable it; `smooth-base`'s `postinst` does the same on existing systems.
 
-### One kernel, one binary, all four flavors
+### One kernel line, all four flavors
 
-`linux-smoothkernel` is a single .deb set installed identically on every flavor. Not per-OS builds.
+`linux-smoothkernel` is one shared kernel line installed by every flavor. It is built per Debian architecture (`amd64`, `arm64`), but not per OS flavor.
 
 The flavor-level differences that people intuitively associate with "server vs desktop kernels" are almost entirely userspace-tunable:
 
@@ -82,7 +82,7 @@ Compile-time choices that can't move to userspace (`CONFIG_PREEMPT`, `CONFIG_HZ`
 - `CONFIG_PREEMPT=y` — full preemption. The throughput cost on I/O-bound NAS workloads is in the noise on modern hardware with BORE.
 - `CONFIG_HZ=1000` — latency responsiveness. Negligible server impact.
 
-This collapses kernel build + maintenance from four pipelines to one. See [`KERNEL.md`](KERNEL.md).
+This collapses kernel maintenance from four flavor pipelines to one source/patch/config policy with per-architecture build artifacts. See [`KERNEL.md`](KERNEL.md).
 
 ### CachyOS as the patch upstream, with Nobara cherry-picks
 
@@ -172,4 +172,4 @@ Engineering investment, largest first:
 
 - **Stable channel model.** Start with a single `main` component per suite; add `testing` for pre-promotion soak once rebase cadence justifies it.
 - **Module signing and Secure Boot.** Standardized in [`signing.md`](signing.md): release-built modules must be signed by the signing-capable release path, and DKMS modules are signed on-host via `smooth-secureboot`.
-- **Arm64 support.** All four flavors are amd64-only at v1. HTPC and NAS have the strongest arm64 cases; router is close behind. Deferred.
+- **Arm64 hardware scope.** Arm64 packages are first-class, but board enablement still needs real target validation. UEFI/SBSA systems are the easiest support lane; SBC-style devices may need firmware and bootloader work outside smoothkernel.

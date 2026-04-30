@@ -76,8 +76,8 @@ patch during the next kernel bump.
 2. Name the file with an ordered numeric prefix.
 3. Keep the patch in `git format-patch` style when possible.
 4. Add or update the lane README.
-5. Run `make kernel-config-update` if the patch adds or removes Kconfig symbols.
-6. Run `make kernel`.
+5. Run `make kernel-config-update-all` if the patch adds or removes Kconfig symbols.
+6. Run `make kernel DEB_ARCH=<arch>` for each affected architecture.
 7. Install on the relevant hardware path before promotion.
 
 If a patch is hardware-specific, document the hardware tested. If no hardware is
@@ -93,9 +93,9 @@ For a point release:
 3. Re-test `nobara-picks`; keep the lane unversioned only while the patches
    continue to apply cleanly across current supported versions.
 4. Rebase local carry patches into the new `post-nobara-<version>/` lane.
-5. Run `make kernel-config-update`.
+5. Run `make kernel-config-update-all`.
 6. Review the config diff.
-7. Run `make kernel zfs`.
+7. Run kernel and ZFS builds for each supported architecture.
 
 The full bump process is in [bumping-kernel.md](bumping-kernel.md).
 
@@ -108,7 +108,7 @@ Before merging a patch-stack change:
 - Is the reason documented in user/workload terms?
 - Is the removal condition known?
 - Does the patch affect config symbols, ABI, module names, or userspace APIs?
-- Did the maintainer run `make kernel`?
+- Did the maintainer run the affected `make kernel DEB_ARCH=<arch>` builds?
 - Did the maintainer run the relevant hardware or flavor smoke test?
 
 ## What Not To Carry

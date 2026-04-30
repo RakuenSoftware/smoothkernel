@@ -19,6 +19,7 @@ Examples:
 
 ```
 linux-smoothkernel_6.18.22+smooth1~trixie1_amd64.deb
+linux-smoothkernel_6.18.22+smooth1~trixie1_arm64.deb
 mesa-vulkan-drivers_25.2.3+smooth2~trixie1_amd64.deb
 linux-firmware-smooth_20260315+smooth1~trixie1_all.deb
 ```
@@ -56,7 +57,7 @@ Kernel is the fastest-moving; expect a kernel PR every 1–2 weeks. Everything e
 
 ### v1 (now)
 
-Single `main` component per suite. The release path builds package artifacts, satisfies the required signing gates, commits them to `apt-repo`, GitHub Pages publishes, and users receive them on the next `apt upgrade`. No staging.
+Single `main` component per suite. The release path builds amd64 and arm64 package artifacts, satisfies the required signing gates, commits them to `apt-repo`, GitHub Pages publishes, and users receive them on the next `apt upgrade`. No staging.
 
 Right posture for where we are — small user base, direct deployment path, rollback is "revert the commit in apt-repo."
 
@@ -98,7 +99,7 @@ We don't enforce a single "Smooth* family release number." Each package versions
 - The `common` packages (kernel, mesa, firmware, smooth-base) they currently have installed
 - The flavor suite's packages
 
-When we do want to identify a coherent "this is what a fresh install looks like right now" snapshot, we tag it at the ISO level — e.g. `smoothnas-2026.04.15-amd64.iso` captures a specific combination of common + smoothnas suite package versions.
+When we do want to identify a coherent "this is what a fresh install looks like right now" snapshot, we tag it at the ISO level — e.g. `smoothnas-2026.04.15-amd64.iso` or `smoothnas-2026.04.15-arm64.iso` captures a specific combination of common + smoothnas suite package versions.
 
 ## Supported upgrade paths
 

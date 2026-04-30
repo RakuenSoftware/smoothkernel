@@ -2,8 +2,8 @@
 
 SmoothKernel is the shared Linux kernel build harness for the Smooth* family:
 SmoothNAS, SmoothRouter, SmoothHTPC, and SmoothDesktop. It builds one kernel
-line, one canonical `.config`, and one ordered patch stack into Debian packages
-that every flavor installs identically.
+line, per-architecture canonical configs, and one ordered patch stack into
+Debian packages that every flavor installs.
 
 The project exists so the Smooth* products can ship a current, low-latency,
 hardware-friendly kernel without maintaining four separate kernel pipelines.
@@ -37,6 +37,7 @@ by hand.
 SmoothKernel owns:
 
 - `configs/smooth-amd64.config`: the canonical amd64 kernel config.
+- `configs/smooth-arm64.config`: the canonical arm64 kernel config.
 - `patches/`: ordered, vendored patch lanes for the current kernel line.
 - `recipes/build-kernel.sh`: kernel.org tarball -> patches -> config -> Debian
   kernel packages.
@@ -57,7 +58,8 @@ smoothkernel/
 |-- README.md
 |-- Makefile                     Top-level orchestration
 |-- configs/
-|   |-- smooth-amd64.config      Current canonical kernel config
+|   |-- smooth-amd64.config      Current canonical amd64 kernel config
+|   |-- smooth-arm64.config      Current canonical arm64 kernel config
 |   `-- <kernel-version>/        Archived config snapshots
 |-- patches/
 |   |-- cachyos-<version>/       Base patch lane applied first
@@ -87,13 +89,17 @@ kernel and patch lanes.
 git clone git@github.com:RakuenSoftware/smoothkernel.git
 cd smoothkernel
 cp examples/smooth.env build.env
-$EDITOR build.env
+$EDITOR build.env              # set versions and patch lane names if overriding defaults
 make show
-make kernel
-make zfs
+make kernel DEB_ARCH=amd64
+make kernel DEB_ARCH=arm64
+make zfs DEB_ARCH=amd64
+make zfs DEB_ARCH=arm64
 ```
 
-Artifacts are copied to `out/`.
+Artifacts are copied to `out/<arch>/` when using the sample `build.env`.
+GitHub releases publish both amd64 and arm64 assets; promote them into the
+apt repo's `common` suite per [docs/RELEASE_MODEL.md](docs/RELEASE_MODEL.md).
 
 Typical kernel outputs are versioned `bindeb-pkg` packages such as:
 
@@ -111,7 +117,7 @@ install commands, see [docs/BUILDING.md](docs/BUILDING.md).
 
 ## Build Model
 
-`make kernel` runs this flow:
+`make kernel DEB_ARCH=<arch>` runs this flow:
 
 ```text
 kernel.org tarball
@@ -119,16 +125,16 @@ kernel.org tarball
   -> apply patches/cachyos-<version>/
   -> apply patches/nobara-picks/
   -> apply patches/post-nobara-<version>/
-  -> seed configs/smooth-amd64.config
+  -> seed configs/smooth-<arch>.config
   -> make olddefconfig
   -> apply the SmoothKernel profile
   -> make bindeb-pkg
-  -> copy .debs to out/
+  -> copy .debs to out/<arch>/
 ```
 
-`make kernel-config-update` runs the same setup path, then writes the refreshed
-`.config` back to `configs/smooth-amd64.config` and
-`configs/<kernel-version>/smooth-amd64.config`.
+`make kernel-config-update-all` runs the same setup path for each supported
+architecture, then writes refreshed configs back to `configs/smooth-<arch>.config`
+and `configs/<kernel-version>/smooth-<arch>.config`.
 
 `make zfs` builds OpenZFS packages from the configured upstream OpenZFS release.
 The DKMS package is kernel-version-independent at package build time; it builds
@@ -190,9 +196,9 @@ For a kernel point release:
 1. Pick the target kernel version using the OpenZFS compatibility floor and
    patch-lane availability.
 2. Vendor or refresh patch lanes.
-3. Run `make kernel-config-update`.
+3. Run `make kernel-config-update-all`.
 4. Review the `.config` diff.
-5. Run `make kernel zfs`.
+5. Build kernel and ZFS packages for each supported architecture.
 6. Install on representative NAS, router, HTPC, and desktop targets.
 7. Promote CI-produced artifacts to the Smooth* apt repository.
 
@@ -202,9 +208,9 @@ The detailed runbook is [docs/bumping-kernel.md](docs/bumping-kernel.md).
 
 Current v1 assumptions:
 
-- amd64 only.
+- amd64 and arm64 package builds.
 - Debian trixie base.
-- One canonical kernel config for every Smooth* flavor.
+- One canonical kernel config per Debian architecture, shared by every Smooth* flavor.
 - OpenZFS is the gating DKMS consumer for kernel version selection.
 - Release-grade Secure Boot support requires signing-capable CI; no private key
   material belongs in this repository.

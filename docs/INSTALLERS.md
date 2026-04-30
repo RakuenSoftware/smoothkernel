@@ -62,7 +62,7 @@ overlay flavors/<FLAVOR>/ (preseed, post-install, packages.txt)
     ↓
 regenerate ISO with modified initrd + menu entries
     ↓
-output: smoothnas-<version>-amd64.iso
+output: smoothnas-<version>-<arch>.iso
 ```
 
 The actual machinery (xorriso, initramfs repacking, bootloader rewrite) is what's already in `SmoothNAS/iso/`. This doc is what it becomes after extraction.
