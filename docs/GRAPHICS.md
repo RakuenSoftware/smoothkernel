@@ -92,7 +92,7 @@ Separate track, separate pipeline.
 
 Leaning (a) at v1 — Debian's non-free is well-maintained, and the Smooth* value-add isn't repackaging NVIDIA.
 
-DKMS modules build against `linux-smoothkernel-headers` automatically once installed. No special glue needed.
+DKMS modules build against the installed SmoothKernel headers automatically once installed. No special glue needed.
 
 ## Intel
 

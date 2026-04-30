@@ -56,7 +56,7 @@ Kernel is the fastest-moving; expect a kernel PR every 1–2 weeks. Everything e
 
 ### v1 (now)
 
-Single `main` component per suite. CI builds a .deb, signs it, commits to `apt-repo`, GitHub Pages publishes, users `apt upgrade` the next time they check. No staging.
+Single `main` component per suite. The release path builds package artifacts, satisfies the required signing gates, commits them to `apt-repo`, GitHub Pages publishes, and users receive them on the next `apt upgrade`. No staging.
 
 Right posture for where we are — small user base, direct deployment path, rollback is "revert the commit in apt-repo."
 
@@ -76,7 +76,7 @@ Not preemptive. Operational pain is the forcing function.
 
 Today, the soak strategy is:
 
-1. Produce a CI-signed candidate build.
+1. Produce a candidate build through the signing-capable release path.
 2. Install on the minimum validation matrix: one NAS target, one router target, one HTPC target, one desktop target.
 3. Boot, run flavor-specific smoke tests (mount a ZFS pool for NAS; pass traffic for router; run Kodi video decode for HTPC; boot into Plasma and launch Steam for desktop).
 4. If clean, commit the .deb to apt-repo.

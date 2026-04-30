@@ -2,6 +2,8 @@
 
 Shipped Smooth* systems support Secure Boot without giving up DKMS-delivered modules such as ZFS, `smoothfs`, or NVIDIA.
 
+This document is the production signing contract. The repository does not store private keys. A local `make kernel` build is valid for bring-up, but an artifact is not promotable to users until the release path has satisfied the signing and verification gates below.
+
 The design uses two trust domains because the module sources come from two places:
 
 - **Rakuen release key** for modules shipped inside release-built packages such as `linux-smoothkernel`
@@ -11,7 +13,7 @@ The design uses two trust domains because the module sources come from two place
 
 ### 1. Release-built modules
 
-`linux-smoothkernel` release builds are produced in CI with a Rakuen-controlled module-signing key.
+`linux-smoothkernel` release builds must be produced in signing-capable CI with a Rakuen-controlled module-signing key.
 
 - Private key lives in KMS / HSM-backed CI secrets, never in git and never on developer laptops
 - Public certificate is injected into the kernel build so shipped kernel modules trust the release key out of the box
@@ -66,7 +68,7 @@ The checked-in `.config` does not hard-code private material or machine-local pa
 
 ## Build and release flow
 
-Developer builds are allowed to use local throwaway keys for bring-up, but only CI-produced release artifacts are promotable to the apt repo.
+Developer builds are allowed to use local throwaway keys for bring-up, but only CI-produced release artifacts that satisfy this signing contract are promotable to the apt repo.
 
 Release build flow:
 

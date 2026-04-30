@@ -15,7 +15,7 @@ Five suites, all signed by the same key, all served from the same origin:
 
 | Suite | Purpose |
 |---|---|
-| `common` | Packages shared across flavors: `linux-smoothkernel`, `linux-smoothkernel-headers`, `mesa` (full Debian-equivalent package set), `linux-firmware-smooth`, `smooth-base`, `smooth-gfx`, `smooth-workstation`, `smooth-secureboot`, `smoothgui-assets`, `smooth-installer` artifacts |
+| `common` | Packages shared across flavors: versioned `linux-image-*-smoothkernel` / `linux-headers-*-smoothkernel` packages, optional stable SmoothKernel metapackages, `mesa` (full Debian-equivalent package set), `linux-firmware-smooth`, `smooth-base`, `smooth-gfx`, `smooth-workstation`, `smooth-secureboot`, `smoothgui-assets`, `smooth-installer` artifacts |
 | `smoothnas` | NAS-specific: `smoothnas` meta, `smoothnas-tuning`, `tierd`, `tierd-ui`, `smoothfs` (DKMS), optional NAS-only helpers |
 | `smoothrouter` | Router-specific: `smoothrouter` meta, `smoothrouter-tuning`, `smoothrouterd`, `smoothrouter-ui`, `smoothrouter-setup` (first-boot wizard) |
 | `smoothhtpc` | HTPC-specific: `smoothhtpc` meta, `smoothhtpc-tuning`, `smoothtv`, HTPC-specific helpers |
@@ -60,7 +60,7 @@ Matches the existing `apt-repo/README.md`. Arm64 is a deferred addition; the ker
 `smooth-base` ships `/etc/apt/preferences.d/10-smooth-overrides`:
 
 ```
-Package: linux-image-smoothkernel* linux-headers-smoothkernel* linux-libc-dev-smoothkernel linux-firmware-smooth
+Package: linux-image-*-smoothkernel linux-headers-*-smoothkernel linux-image-smoothkernel linux-headers-smoothkernel linux-libc-dev linux-firmware-smooth
 Pin: release o=RakuenSoftware, a=common
 Pin-Priority: 1001
 
@@ -116,7 +116,7 @@ Out of scope until we ship to real users.
 
 ## Out-of-tree modules and DKMS
 
-DKMS modules (`zfs-dkms`, `smoothfs`-via-DKMS, NVIDIA if we mirror it) build against `linux-smoothkernel-headers` on install. They live in `common` so every flavor can pull them; flavor meta-packages declare Depends on only the modules they actually need.
+DKMS modules (`zfs-dkms`, `smoothfs`-via-DKMS, NVIDIA if we mirror it) build against the installed SmoothKernel headers on install. The versioned package name is `linux-headers-<kernel-version>-smoothkernel`; the apt repo may also provide a stable metapackage such as `linux-headers-smoothkernel`. DKMS consumers live in `common` only when multiple flavors can pull them; flavor meta-packages declare Depends on only the modules they actually need.
 
 Every flavor meta-package also depends on `smooth-secureboot`, which owns the per-host Secure Boot / MOK bootstrap and DKMS-signing hooks for the shared-kernel model.
 

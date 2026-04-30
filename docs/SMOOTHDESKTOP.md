@@ -225,7 +225,7 @@ All "just works" defaults:
 
 ## NVIDIA
 
-See [`GRAPHICS.md`](GRAPHICS.md). v1 posture: the desktop bootstrap path already enables Debian `non-free`, so installing `nvidia-driver-<latest>` is straightforward; DKMS builds against `linux-smoothkernel-headers` and everything works. If we later decide to mirror NVIDIA drivers into `common`, `smoothdesktop` picks up the benefit transparently.
+See [`GRAPHICS.md`](GRAPHICS.md). v1 posture: the desktop bootstrap path already enables Debian `non-free`, so installing `nvidia-driver-<latest>` is straightforward; DKMS builds against the installed SmoothKernel headers and everything works. If we later decide to mirror NVIDIA drivers into `common`, `smoothdesktop` picks up the benefit transparently.
 
 ## First-run experience
 
