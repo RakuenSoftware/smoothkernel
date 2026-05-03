@@ -113,7 +113,23 @@ apply_smoothkernel_profile() {
         echo "==> trimming cross-flavor-irrelevant legacy / appliance hardware"
 
         # Keep HTPC / Desktop paths intact in the shared kernel.
+        # Real GPU drivers for bare-metal installs; VM display drivers
+        # (virtio-vga, QEMU std/bochs, EFI simpledrm) so the installer
+        # kernel can drive Xorg in KVM/QEMU/PVE guests.
         scripts/config --module DRM \
+                       --module DRM_RADEON \
+                       --module DRM_AMDGPU \
+                       --module DRM_NOUVEAU \
+                       --module DRM_I915 \
+                       --module DRM_XE \
+                       --module DRM_VMWGFX \
+                       --module DRM_QXL \
+                       --module DRM_VBOXVIDEO \
+                       --module DRM_VIRTIO_GPU \
+                       --enable DRM_VIRTIO_GPU_KMS \
+                       --module DRM_BOCHS \
+                       --module DRM_SIMPLEDRM \
+                       --enable SYSFB_SIMPLEFB \
                        --enable SOUND \
                        --module SND \
                        --enable WLAN \
