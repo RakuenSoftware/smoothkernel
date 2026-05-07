@@ -214,8 +214,13 @@ apply_smoothkernel_profile() {
 
         # Keep HTPC / Desktop paths intact in the shared kernel.
         # Real GPU drivers for bare-metal installs; VM display drivers
-        # (virtio-vga, QEMU std/bochs, EFI simpledrm) so the installer
-        # kernel can drive Xorg in KVM/QEMU/PVE guests.
+        # (virtio-vga, QEMU std/bochs) so guest kernels can drive Xorg in
+        # KVM/QEMU/PVE. SYSFB_SIMPLEFB + DRM_SIMPLEDRM are intentionally
+        # excluded: SIMPLEFB registers a built-in platform device early in
+        # start_kernel from EFI GOP screen_info, and on some bare-metal AMD
+        # UEFI firmware that registration silently hangs the boot before
+        # the kernel banner ever prints (KASLR/SME/mitigations toggles do
+        # not unstick it). simpledrm without simplefb has nothing to bind.
         scripts/config --module DRM \
                        --module DRM_RADEON \
                        --module DRM_AMDGPU \
@@ -228,8 +233,8 @@ apply_smoothkernel_profile() {
                        --module DRM_VIRTIO_GPU \
                        --enable DRM_VIRTIO_GPU_KMS \
                        --module DRM_BOCHS \
-                       --module DRM_SIMPLEDRM \
-                       --enable SYSFB_SIMPLEFB \
+                       --disable DRM_SIMPLEDRM \
+                       --disable SYSFB_SIMPLEFB \
                        --enable SOUND \
                        --module SND \
                        --enable WLAN \
