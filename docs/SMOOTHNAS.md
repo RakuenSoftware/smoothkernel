@@ -40,6 +40,7 @@ Depends:
  lvm2,
  btrfs-progs,
  bcachefs-tools,
+ bcachefs-kernel-dkms,
  smartmontools,
  nginx,
  openssh-server

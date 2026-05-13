@@ -99,6 +99,29 @@ apply_patch_stack() {
     done < <(find "$patch_dir" -maxdepth 1 -type f -name '*.patch' | sort)
 }
 
+add_headers_virtual_provides() {
+    local deb="$1"
+    local tmp control version provides
+
+    tmp="$(mktemp -d)"
+    dpkg-deb -R "$deb" "$tmp" >/dev/null
+    control="$tmp/DEBIAN/control"
+    version="$(sed -n 's/^Version: //p' "$control" | head -1)"
+    provides="linux-headers (= ${version})"
+
+    if grep -q '^Provides:' "$control"; then
+        if ! grep -Eq '(^Provides:|,)[[:space:]]*linux-headers([[:space:],(]|$)' "$control"; then
+            sed -i "s/^Provides: /Provides: ${provides}, /" "$control"
+        fi
+    else
+        sed -i "/^Version: /a Provides: ${provides}" "$control"
+    fi
+
+    dpkg-deb -b "$tmp" "${deb}.patched" >/dev/null
+    mv "${deb}.patched" "$deb"
+    rm -rf "$tmp"
+}
+
 apply_smoothkernel_profile() {
     echo "==> applying SmoothKernel profile"
 
@@ -168,7 +191,6 @@ apply_smoothkernel_profile() {
     scripts/config --module EXT4_FS \
                    --module XFS_FS \
                    --module BTRFS_FS \
-                   --module BCACHEFS_FS \
                    --module NTFS3_FS \
                    --module F2FS_FS \
                    --module EXFAT_FS \
@@ -353,7 +375,11 @@ LOCAL_TAG="${LOCALVERSION#-}"  # strip leading '-' so "smooth" anchors the glob 
 for f in "../linux-image-${KERNEL_VERSION}-${LOCAL_TAG}"*"_${KERNEL_VERSION}-"*"_${DEB_ARCH}.deb" \
          "../linux-headers-${KERNEL_VERSION}-${LOCAL_TAG}"*"_${KERNEL_VERSION}-"*"_${DEB_ARCH}.deb" \
          "../linux-libc-dev_${KERNEL_VERSION}-"*"_${DEB_ARCH}.deb"; do
-    cp -v "$f" "$OUT_DIR/"
+    dest="$OUT_DIR/$(basename "$f")"
+    cp -v "$f" "$dest"
+    if [[ "$(basename "$dest")" == linux-headers-* ]]; then
+        add_headers_virtual_provides "$dest"
+    fi
     moved+=("$f")
 done
 if [[ ${#moved[@]} -lt 3 ]]; then
