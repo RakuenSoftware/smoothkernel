@@ -79,7 +79,7 @@ One canonical `.config` per Debian architecture, versioned in smoothkernel. See 
 - `CONFIG_DEBUG_INFO_BTF=n`, debug info stripped (matches `build-kernel.sh` STRIP_DEBUG_INFO=1 default)
 - APPLIANCE_TRIM profile-equivalent: drop only cross-flavor-irrelevant legacy / industrial families. It must not remove DRM, audio, media, wifi, or input support needed by HTPC / Desktop.
 
-Filesystems built in: ext4, xfs, btrfs, bcachefs. ZFS stays DKMS (CDDL/GPL).
+Filesystems built in: ext4, xfs, btrfs. bcachefs and ZFS stay DKMS modules.
 
 ## Build flow
 

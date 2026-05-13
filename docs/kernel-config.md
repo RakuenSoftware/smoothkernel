@@ -41,7 +41,8 @@ The following settings are load-bearing across every flavor. Changing one has cr
 
 Built in as modules (available but not always loaded):
 
-- ext4, xfs, btrfs, bcachefs — all built in as `=m`
+- ext4, xfs, btrfs — all built in as `=m`
+- bcachefs — external DKMS module, installed from the bcachefs APT repo when a flavor enables it
 - ZFS — *not* in-tree (CDDL/GPL); ships as `zfs-dkms`
 - NTFS3 — `=m` (useful for external drives on desktop/HTPC)
 - f2fs, exfat, FAT — `=m`
