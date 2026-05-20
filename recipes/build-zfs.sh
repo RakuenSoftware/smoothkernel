@@ -50,7 +50,7 @@ fi
 
 echo "==> building (-j${BUILD_THREADS})"
 date
-make -j"$BUILD_THREADS" deb-utils deb-dkms 2>&1 | tail -5 || {
+make -j"$BUILD_THREADS" deb-utils deb-dkms || {
     echo "ERROR: zfs build failed"; exit 1;
 }
 date
