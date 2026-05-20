@@ -83,6 +83,15 @@ jobs:
         run: |
           set -eux
           mkdir -p "$GITHUB_WORKSPACE"
+          if ! test -x /home/runner/externals/node24/bin/node; then
+            curl -fsSLo /tmp/node24.tar.xz https://nodejs.org/dist/v24.15.0/node-v24.15.0-linux-x64.tar.xz
+            echo "472655581fb851559730c48763e0c9d3bc25975c59d518003fc0849d3e4ba0f6  /tmp/node24.tar.xz" | sha256sum -c -
+            rm -rf /tmp/node24
+            mkdir -p /tmp/node24 /home/runner/externals/node24/bin
+            tar -xJf /tmp/node24.tar.xz -C /tmp/node24 --strip-components=1
+            cp /tmp/node24/bin/node /home/runner/externals/node24/bin/node
+            chmod 0755 /home/runner/externals/node24/bin/node
+          fi
           test -x /home/runner/externals/node24/bin/node
           /home/runner/externals/node24/bin/node --version
           rm -rf /tmp/github-actions-node24
