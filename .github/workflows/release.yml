@@ -8,12 +8,16 @@ name: Release
 # Triggers:
 #   - push to main: every kernel/patch/config change publishes a new
 #     prerelease tagged v<KERNEL_VERSION>-<short-sha>.
+#   - pull_request to main: builds the same .deb set and uploads
+#     per-architecture workflow artifacts for review/testing.
 #   - tag push v*.*.*: publishes a stable release at that tag.
 #   - workflow_dispatch: manual run for ad-hoc rebuilds.
 on:
   push:
     branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -117,6 +121,7 @@ jobs:
 
   release:
     needs: [meta, build]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       - name: Download package artifacts

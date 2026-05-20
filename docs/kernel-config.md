@@ -62,7 +62,10 @@ Built in as modules (available but not always loaded):
 Built in: the handful of drivers needed to boot every supported platform. Everything else as modules.
 
 - Core: AHCI, NVMe, USB storage
-- GPU: amdgpu, i915, xe, nouveau, radeon — all `=m`
+- GPU: amdgpu, i915, xe, nouveau, radeon — all `=m`; amd64 also keeps
+  `DRM_AMDGPU_USERPTR`, `HSA_AMD`, and `HSA_AMD_SVM` enabled so headless
+  SmoothNAS hosts expose the ROCm `/dev/kfd` path needed by vLLM-style
+  inference containers.
 - Network: common NIC drivers (e1000e, igc, ixgbe, r8169, iwlwifi, mt76) — `=m`
 - USB HID, input — `=y` for boot-time usability
 

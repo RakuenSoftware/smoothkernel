@@ -246,6 +246,9 @@ apply_smoothkernel_profile() {
         scripts/config --module DRM \
                        --module DRM_RADEON \
                        --module DRM_AMDGPU \
+                       --enable DRM_AMDGPU_USERPTR \
+                       --enable HSA_AMD \
+                       --enable HSA_AMD_SVM \
                        --module DRM_NOUVEAU \
                        --module DRM_I915 \
                        --module DRM_XE \

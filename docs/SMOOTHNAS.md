@@ -41,6 +41,9 @@ Depends:
  btrfs-progs,
  bcachefs-tools,
  bcachefs-kernel-dkms,
+ firmware-amd-graphics,
+ rocminfo,
+ rocm-smi,
  smartmontools,
  nginx,
  openssh-server
@@ -51,6 +54,21 @@ Recommends:
 ```
 
 No graphical dependencies — NAS is headless.
+
+## ROCm / vLLM posture
+
+SmoothNAS can host AMD GPU inference plugins, including vLLM ROCm containers,
+without pulling a desktop graphics stack. The host contract is:
+
+- SmoothKernel `amd64` keeps `amdgpu` as a module and enables
+  `DRM_AMDGPU_USERPTR`, `HSA_AMD`, and `HSA_AMD_SVM`, which provides the
+  `/dev/dri/renderD*` and `/dev/kfd` device nodes that ROCm containers need.
+- The SmoothNAS appliance stages and installs AMD GPU firmware plus `rocminfo`
+  and `rocm-smi` for host-side validation and diagnostics; the heavy
+  ROCm/PyTorch/vLLM userspace remains inside the plugin container image.
+- Plugin manifests that need AMD acceleration should use SmoothNAS `gpu-amd`.
+  That profile must pass both `/dev/dri` and `/dev/kfd` through to the plugin
+  runtime.
 
 ## Existing Makefile → Debian packaging
 

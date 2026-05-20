@@ -1,6 +1,6 @@
 # Graphics stack
 
-How the Smooth* family keeps Mesa, firmware, and GPU drivers meaningfully newer than Debian stable ships. Applies to SmoothHTPC and SmoothDesktop; SmoothNAS and SmoothRouter don't pull any of it.
+How the Smooth* family keeps Mesa, firmware, and GPU drivers meaningfully newer than Debian stable ships. Applies primarily to SmoothHTPC and SmoothDesktop. SmoothNAS stays headless and does not pull the desktop Mesa stack, but it does install AMD GPU firmware and small ROCm diagnostics for vLLM-style inference plugins.
 
 ## Why we take ownership
 
