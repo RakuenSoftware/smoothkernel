@@ -77,18 +77,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     steps:
-      - name: Prepare self-hosted workspace
-        if: matrix.deb_arch == 'amd64'
-        working-directory: /home/runner
-        run: |
-          set -eux
-          mkdir -p "$GITHUB_WORKSPACE"
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Free runner disk
+        if: matrix.deb_arch != 'amd64'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
           df -h
