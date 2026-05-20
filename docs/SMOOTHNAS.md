@@ -66,9 +66,10 @@ without pulling a desktop graphics stack. The host contract is:
 - The SmoothNAS appliance stages and installs AMD GPU firmware plus `rocminfo`
   and `rocm-smi` for host-side validation and diagnostics; the heavy
   ROCm/PyTorch/vLLM userspace remains inside the plugin container image.
-- Plugin manifests that need AMD acceleration should use SmoothNAS `gpu-amd`.
-  That profile must pass both `/dev/dri` and `/dev/kfd` through to the plugin
-  runtime.
+- Plugin manifests that need AMD graphics acceleration should use SmoothNAS
+  `gpu-amd`. ROCm/HSA compute plugins should additionally use
+  `rocm-runtime`, which passes `/dev/kfd` through and fails materialisation
+  when the host kernel has not exposed it.
 
 ## Existing Makefile → Debian packaging
 

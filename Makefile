@@ -23,7 +23,7 @@ NOBARA_PATCHSET ?= nobara-picks
 POST_NOBARA_PATCHSET ?= post-nobara-$(KERNEL_VERSION)
 OUT_DIR ?= $(CURDIR)/out
 
-.PHONY: help kernel kernel-all kernel-config-update kernel-config-update-all zfs clean show
+.PHONY: help kernel kernel-all kernel-config-update kernel-config-update-all check-rocm-config zfs clean show
 
 help:
 	@echo "smoothkernel — Smooth* shared kernel build harness"
@@ -33,6 +33,7 @@ help:
 	@echo "  kernel-all    Build kernel .debs for ARCHES='$(ARCHES)'"
 	@echo "  kernel-config-update  Refresh configs/ against the patched kernel tree"
 	@echo "  kernel-config-update-all  Refresh configs/ for ARCHES='$(ARCHES)'"
+	@echo "  check-rocm-config  Assert amd64 SmoothKernel keeps ROCm/KFD symbols enabled"
 	@echo "  zfs       Build OpenZFS .debs (zfs-dkms + libs + utils)"
 	@echo "  clean     Remove build trees + out/"
 	@echo "  show      Print the resolved build environment"
@@ -83,6 +84,9 @@ kernel-config-update-all:
 		echo "==> refreshing kernel config for $$arch"; \
 		$(MAKE) DEB_ARCH=$$arch kernel-config-update; \
 	done
+
+check-rocm-config:
+	@$(CURDIR)/scripts/check-rocm-config.sh
 
 zfs:
 	@$(CURDIR)/recipes/build-zfs.sh

@@ -16,8 +16,8 @@ Install the same dependency set used by CI:
 sudo apt-get update
 sudo apt-get install -y \
   build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
-  libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils \
-  autoconf automake libtool gawk alien dh-python po-debconf \
+  libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils zstd \
+  autoconf automake libtool gawk alien rpm rpm2cpio dh-python po-debconf \
   uuid-dev libudev-dev libblkid-dev libtirpc-dev libcurl4-openssl-dev \
   libaio-dev libattr1-dev libffi-dev zlib1g-dev libpam0g-dev \
   python3 python3-dev python3-cffi python3-setuptools python3-packaging \
@@ -59,7 +59,7 @@ make ENV_FILE=/path/to/my-build.env kernel DEB_ARCH=amd64
 | `POST_NOBARA_PATCHSET` | no | `post-nobara-$(KERNEL_VERSION)` | Final patch lane under `patches/`. |
 | `OUT_DIR` | no | `$(pwd)/out` | Where finished `.deb` files are copied. |
 | `BUILD_THREADS` | no | `$(nproc)` | Parallelism for kernel and ZFS builds. |
-| `STRIP_DEBUG_INFO` | no | `1` | Disables BTF/DWARF debug info to reduce build size and package size. |
+| `STRIP_DEBUG_INFO` | no | `1` | Disables kernel debug info and debug package generation to reduce build size and package size. |
 | `NET_TUNING` | no | `1` | Enables BBR/FQ and related network-path options in the build profile. |
 | `SERVER_TUNING` | no | `1` | Enables general appliance/server config toggles. |
 | `APPLIANCE_TRIM` | no | `1` | Trims hardware families outside the Smooth* support target while preserving desktop/HTPC basics. |

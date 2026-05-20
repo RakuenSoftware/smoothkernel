@@ -33,7 +33,8 @@ The following settings are load-bearing across every flavor. Changing one has cr
 | amd64 microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
 | arm64 baseline | generic Debian arm64 | Broadest viable arm64 support; board-specific boot enablement is outside this config |
 | `CONFIG_MODULE_SIG_FORCE` | `y` | Shipped kernels reject unsigned modules; release-built packaged modules must be signed in the signing-capable release path and DKMS modules are signed on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
-| `CONFIG_DEBUG_INFO_BTF` | `n` | Set by `STRIP_DEBUG_INFO=1` default in build-kernel.sh |
+| `CONFIG_DEBUG_INFO` | `n` | Set by `STRIP_DEBUG_INFO=1` default in build-kernel.sh to avoid debug package bloat |
+| `CONFIG_DEBUG_INFO_BTF` | `n` | Also disabled by the same stripped-debug profile |
 | `CONFIG_SYSTEM_TRUSTED_KEYS` | build-time injected Rakuen module cert | Release builds inject the public cert for packaged-module signing; the checked-in config does not carry secrets or machine-local paths |
 | `CONFIG_SYSTEM_REVOCATION_KEYS` | `""` | Explicitly managed by our release process rather than inherited from Debian packaging defaults |
 
@@ -109,7 +110,9 @@ When a kernel bump introduces new config symbols (common on major bumps):
 
 1. `make kernel-config-update-all` refreshes the patched tree, runs `olddefconfig`, reapplies the SmoothKernel profile, and writes the resulting configs back into `configs/`.
 2. Review the resulting diff. Sometimes a new option defaults to `y` and bloats the image; sometimes to `n` and disables something we want. Check the diff manually.
-3. Commit the updated `configs/smooth-<arch>.config` and `configs/<kernel-version>/smooth-<arch>.config` files as part of the kernel-bump PR.
+3. Run `make check-rocm-config` before review sign-off; it guards the amd64
+   `amdgpu`/HSA symbols that SmoothNAS ROCm plugins need for `/dev/kfd`.
+4. Commit the updated `configs/smooth-<arch>.config` and `configs/<kernel-version>/smooth-<arch>.config` files as part of the kernel-bump PR.
 
 ## Out-of-tree modules
 

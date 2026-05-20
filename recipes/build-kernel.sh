@@ -20,8 +20,8 @@
 #   NOBARA_PATCHSET   default nobara-picks
 #   POST_NOBARA_PATCHSET default post-nobara-$KERNEL_VERSION
 #   MODE              build (default) or update-config
-#   STRIP_DEBUG_INFO  if "1" (default), strip BTF/DWARF to slim the
-#                     image and speed up packaging
+#   STRIP_DEBUG_INFO  if "1" (default), disable debug-info packaging
+#                     to slim the image and speed up packaging
 
 set -euo pipefail
 
@@ -149,9 +149,12 @@ apply_smoothkernel_profile() {
 
     if [[ "$STRIP_DEBUG_INFO" = "1" ]]; then
         echo "==> stripping debug-info bloat"
-        scripts/config --disable DEBUG_INFO_BTF \
+        scripts/config --disable DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT \
                        --disable DEBUG_INFO_DWARF5 \
                        --disable DEBUG_INFO_DWARF4 \
+                       --disable DEBUG_INFO_REDUCED \
+                       --enable DEBUG_INFO_NONE \
+                       --disable DEBUG_INFO_BTF \
                        --disable SYSTEM_TRUSTED_KEYS \
                        --disable SYSTEM_REVOCATION_KEYS
     fi
