@@ -50,9 +50,20 @@ fi
 
 echo "==> building (-j${BUILD_THREADS})"
 date
-make -j"$BUILD_THREADS" RPMBUILD="rpmbuild --define '_binary_payload w9.gzdio'" deb-utils deb-dkms || {
-    echo "ERROR: zfs build failed"; exit 1;
+rpmbuild_cmd="rpmbuild --define '_binary_payload w9.gzdio'"
+
+# OpenZFS' alien-based deb targets share the source tree and fakeroot/rpm
+# tooling; run the target groups sequentially while preserving per-target
+# parallelism.
+make -j"$BUILD_THREADS" RPMBUILD="$rpmbuild_cmd" deb-utils || {
+    echo "ERROR: zfs userspace package build failed"; exit 1;
 }
+make -j"$BUILD_THREADS" RPMBUILD="$rpmbuild_cmd" deb-dkms || {
+    echo "ERROR: zfs dkms package build failed"; exit 1;
+}
+if ! compgen -G "*.deb" >/dev/null; then
+    echo "ERROR: zfs build failed"; exit 1;
+fi
 date
 
 echo "==> collecting .debs into $OUT_DIR"
