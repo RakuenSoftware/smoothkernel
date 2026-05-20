@@ -85,6 +85,8 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE"
           test -x /home/runner/externals/node24/bin/node
           /home/runner/externals/node24/bin/node --version
+          rm -rf /tmp/github-actions-node24
+          cp -a /home/runner/externals/node24 /tmp/github-actions-node24
 
       - uses: actions/checkout@v4
         with:
@@ -126,6 +128,17 @@ jobs:
           cp "out/${{ matrix.deb_arch }}"/*.deb "dist/${{ matrix.deb_arch }}/"
           (cd "dist/${{ matrix.deb_arch }}" && sha256sum *.deb > "SHA256SUMS.${{ matrix.deb_arch }}")
           ls -lh "dist/${{ matrix.deb_arch }}/"
+
+      - name: Restore self-hosted Node runtime
+        if: matrix.deb_arch == 'amd64'
+        run: |
+          set -eux
+          if ! test -x /home/runner/externals/node24/bin/node; then
+            test -x /tmp/github-actions-node24/bin/node
+            mkdir -p /home/runner/externals
+            cp -a /tmp/github-actions-node24 /home/runner/externals/node24
+          fi
+          /home/runner/externals/node24/bin/node --version
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
