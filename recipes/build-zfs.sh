@@ -50,7 +50,7 @@ fi
 
 echo "==> building (-j${BUILD_THREADS})"
 date
-make -j"$BUILD_THREADS" deb-utils deb-dkms || {
+make -j"$BUILD_THREADS" RPMBUILD="rpmbuild --define '_binary_payload w9.gzdio'" deb-utils deb-dkms || {
     echo "ERROR: zfs build failed"; exit 1;
 }
 date
