@@ -49,9 +49,9 @@ make ENV_FILE=/path/to/my-build.env kernel DEB_ARCH=amd64
 
 | Variable | Required | Default | Meaning |
 |---|---:|---|---|
-| `KERNEL_VERSION` | yes | none | Kernel.org stable version to build, for example `6.19.12`. |
-| `LOCALVERSION` | yes | none | Kernel release suffix. The checked-in examples use `-smoothkernel`, producing package names such as `linux-image-6.19.12-smoothkernel`. |
-| `ZFS_VERSION` | yes for `make zfs` | none | OpenZFS release version, for example `2.4.1`. |
+| `KERNEL_VERSION` | yes | none | Kernel.org stable version to build, for example `7.0.11`. |
+| `LOCALVERSION` | yes | none | Kernel release suffix. The checked-in examples use `-smoothkernel`, producing package names such as `linux-image-7.0.11-smoothkernel`. |
+| `ZFS_VERSION` | yes for `make zfs` | none | OpenZFS release version, for example `2.4.2`. |
 | `DEB_ARCH` | no | `amd64` | Debian architecture to build: `amd64` or `arm64`. |
 | `CONFIG_SOURCE` | no | `configs/smooth-$(DEB_ARCH).config` in the example | Seed `.config`. |
 | `CACHYOS_PATCHSET` | no | `cachyos-$(KERNEL_VERSION)` | First patch lane under `patches/`. |
@@ -94,15 +94,15 @@ checksum file. If you need full provenance verification, add GPG verification of
 string. With:
 
 ```sh
-KERNEL_VERSION=6.19.12
+KERNEL_VERSION=7.0.11
 LOCALVERSION=-smoothkernel
 ```
 
 expect names in this shape:
 
 ```text
-linux-image-6.19.12-smoothkernel_*.deb
-linux-headers-6.19.12-smoothkernel_*.deb
+linux-image-7.0.11-smoothkernel_*.deb
+linux-headers-7.0.11-smoothkernel_*.deb
 linux-libc-dev_*.deb
 ```
 

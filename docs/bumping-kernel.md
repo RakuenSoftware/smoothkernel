@@ -13,8 +13,8 @@ For Smooth* the must-have DKMS set is OpenZFS (required by SmoothNAS). Rule: **l
 Check OpenZFS:
 
 ```
-$ curl -fsSL https://github.com/openzfs/zfs/raw/zfs-2.4.1/META | grep ^Linux
-Linux-Maximum: 6.19
+$ curl -fsSL https://github.com/openzfs/zfs/raw/zfs-2.4.2/META | grep ^Linux
+Linux-Maximum: 7.0
 Linux-Minimum: 4.18
 ```
 
@@ -41,12 +41,12 @@ Cross-reference:
 Update `build.env`:
 
 ```sh
-KERNEL_VERSION=6.19.12
+KERNEL_VERSION=7.0.11
 LOCALVERSION=-smoothkernel          # never changes under the one-kernel model
-CACHYOS_PATCHSET=cachyos-6.19.12
+CACHYOS_PATCHSET=cachyos-7.0.11
 NOBARA_PATCHSET=nobara-picks
-POST_NOBARA_PATCHSET=post-nobara-6.19.12
-ZFS_VERSION=2.4.1                   # bump if pairing requires it
+POST_NOBARA_PATCHSET=post-nobara-7.0.11
+ZFS_VERSION=2.4.2                   # bump if pairing requires it
 ```
 
 ### 2. Vendor the patch lanes

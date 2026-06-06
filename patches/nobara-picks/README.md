@@ -2,7 +2,12 @@
 
 Cherry-picked Nobara patches that apply after the base CachyOS-derived lane.
 
-Current `6.19.12` picks:
+This lane is intentionally unversioned: the picks continue to apply cleanly
+across current supported kernels. All three were re-verified against a pristine
+kernel.org `7.0.11` tree on top of the `cachyos-7.0.11` base lane during the
+`6.19.12 → 7.0.11` bump and applied without rebase.
+
+Current picks:
 
 - `0001-Allow-to-set-custom-USB-pollrate-for-specific-device.patch`
 - `0002-ps-logitech-wheel.patch`

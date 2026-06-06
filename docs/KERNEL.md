@@ -34,11 +34,13 @@ The payoff: one rebase per upstream bump instead of four, one config policy to m
 
 SmoothKernel builds from a pristine kernel.org tarball. Downstream scheduler and kernel adjustments are then applied from vendored patch lanes committed in-tree. The patch custody rules are in [`PATCHES.md`](PATCHES.md).
 
-For the current `6.19.12` line, the base lane is derived from CachyOS's scheduler work but intentionally uses `sched/0001-bore.patch` rather than `0001-bore-cachy.patch`. `bore-cachy` expects additional Cachy scheduler deltas that are not present in a pristine kernel.org tree; `0001-bore.patch` applies cleanly and gives us the BORE default without inheriting hidden source deltas.
+For the current `7.0.11` line, the base lane is derived from CachyOS's scheduler work but intentionally uses `sched/0001-bore.patch` rather than `0001-bore-cachy.patch`. `bore-cachy` expects additional Cachy scheduler deltas that are not present in a pristine kernel.org tree; `0001-bore.patch` applies cleanly and gives us the BORE default without inheriting hidden source deltas.
 
-The base lane we currently carry (see [`kernel-config.md`](kernel-config.md) for toggles):
+The base lane we currently carry (see [`kernel-config.md`](kernel-config.md) for toggles), all from CachyOS `7.0/` and verified clean against a pristine `7.0.11` tree:
 
-- **BORE scheduler** — EEVDF-based burst-aware scheduler. Default.
+- **BORE scheduler** (`0001-bore.patch`) — EEVDF-based burst-aware scheduler. Default.
+- **`acpi_call` module** (`0002-acpi-call.patch`) — enables fan-control / charge-threshold userspace; inert unless a tool drives `/proc/acpi/call`.
+- **i915 low-latency tweaks** (`0003-rt-i915.patch`) — latency tuning for the Intel display path; no effect on non-Intel-graphics hardware.
 
 ### Secondary: Nobara cherry-picks
 
@@ -54,8 +56,10 @@ All of these are driver-level patches. On a headless NAS or router, the driver n
 
 Some kernel lines need a small number of additional patches after the Nobara lane. These live in `patches/post-nobara-<kernel-version>/` and are applied last so their provenance and rebasing burden stay explicit.
 
-For `6.19.12`, this lane carries the rebased DRM / gamescope async-flip fixups
-that were not clean “drop-in” Nobara picks.
+For `7.0.11`, this lane carries the DRM / gamescope async-flip fixups (which
+carried forward from the `6.19.12` lane unchanged — they still apply cleanly,
+so upstream has not yet absorbed them) plus the SmoothNAS sunrpc slot-table
+seed. None were clean “drop-in” Nobara picks.
 
 ### Explicitly not applied
 
