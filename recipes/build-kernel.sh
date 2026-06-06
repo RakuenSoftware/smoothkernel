@@ -306,6 +306,13 @@ apply_smoothkernel_profile() {
         scripts/config --module HID_XPADNEO
     fi
 
+    # Enable the CachyOS acpi_call pick as a module when the base lane added it
+    # (x86-only symbol in drivers/platform/x86; absent on arm64, where this is a
+    # no-op). Without this the vendored 0002-acpi-call.patch would be inert.
+    if grep -q '^config ACPI_CALL$' drivers/platform/x86/Kconfig 2>/dev/null; then
+        scripts/config --module ACPI_CALL
+    fi
+
     scripts/config --set-str LOCALVERSION "$LOCALVERSION"
     kernel_make olddefconfig </dev/null >/dev/null
 }
