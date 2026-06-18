@@ -124,6 +124,12 @@ jobs:
           name: packages-${{ matrix.deb_arch }}
           path: dist/${{ matrix.deb_arch }}
           if-no-files-found: error
+          # Transient hand-off to the `release` job in the same run (which
+          # publishes the .debs to a durable GitHub Release). Without a short
+          # retention these ~250MB-1GB uploads linger 90 days and pile up — they
+          # blew the org's 2GB Actions-storage cap. One day is well over a run's
+          # duration; the durable copy lives in Releases.
+          retention-days: 1
 
   release:
     needs: [meta, build]
