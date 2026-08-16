@@ -49,6 +49,7 @@ help:
 	@echo "  CACHYOS_PATCHSET       default $(CACHYOS_PATCHSET)"
 	@echo "  NOBARA_PATCHSET        default $(NOBARA_PATCHSET)"
 	@echo "  POST_NOBARA_PATCHSET   default $(POST_NOBARA_PATCHSET)"
+	@echo "  ZFS_PATCHSET           default $(ZFS_PATCHSET) (empty = no ZFS patches)"
 	@echo "  OUT_DIR           default $(OUT_DIR)"
 	@echo "  BUILD_THREADS     default \$$(nproc)"
 	@echo "  CROSS_COMPILE     optional kernel cross-compiler prefix"
@@ -64,6 +65,7 @@ show:
 	@echo "CACHYOS_PATCHSET = $(CACHYOS_PATCHSET)"
 	@echo "NOBARA_PATCHSET = $(NOBARA_PATCHSET)"
 	@echo "POST_NOBARA_PATCHSET = $(POST_NOBARA_PATCHSET)"
+	@echo "ZFS_PATCHSET    = $(ZFS_PATCHSET)"
 	@echo "OUT_DIR         = $(OUT_DIR)"
 	@echo "BUILD_THREADS   = $(BUILD_THREADS)"
 

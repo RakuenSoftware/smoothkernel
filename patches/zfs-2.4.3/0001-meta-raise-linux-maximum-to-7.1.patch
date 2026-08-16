@@ -1,0 +1,39 @@
+Subject: [PATCH] META: raise Linux-Maximum to 7.1
+
+OpenZFS 2.4.3 declares Linux-Maximum: 7.0, which makes configure refuse to
+build against our 7.1.8 kernel:
+
+    *** Cannot build against kernel version 7.1.8-smoothkernel.
+    *** The maximum supported kernel version is 7.0.
+
+Upstream raised the same cap to 7.1 on master in PR #18682 ("Linux 7.1 compat:
+META"), which changed this one line and nothing else -- no code was required
+for 7.1 support. That commit landed 2026-06-17, six days after the 2.4.3 tag,
+so it missed the release by timing rather than by readiness.
+
+Verified before carrying: OpenZFS 2.4.3 compiles cleanly against a patched
+Linux 7.1.8 tree (143 modules, resulting zfs.ko vermagic 7.1.8-smoothkernel).
+The only build warnings are the pre-existing objtool __noreturn annotations on
+spl_panic() and luaD_throw(); there are no implicit-declaration or
+incompatible-pointer warnings that would indicate real kernel API drift.
+
+Why patch META rather than pass --enable-linux-experimental: the flag works for
+a local build but cannot reach the DKMS path. scripts/dkms.mkconf hardcodes the
+configure argument list used when zfs-dkms rebuilds on the target machine, and
+the only injectable knobs are ICP_ROOT, ZFS_DKMS_ENABLE_DEBUG and
+ZFS_DKMS_ENABLE_DEBUGINFO. A SmoothNAS appliance rebuilding zfs-dkms against
+7.1.8 headers would therefore hit the 7.0 gate and fail. Patching META makes the
+raised cap travel with the packaged source, so it holds on every target rebuild.
+
+Removal condition: drop this patch as soon as we move to an OpenZFS release
+whose own META declares Linux-Maximum >= 7.1.
+
+--- a/META
++++ b/META
+@@ -6,5 +6,5 @@
+ Release-Tags:  relext
+ License:       CDDL
+ Author:        OpenZFS
+-Linux-Maximum: 7.0
++Linux-Maximum: 7.1
+ Linux-Minimum: 4.18

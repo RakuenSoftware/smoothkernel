@@ -1,0 +1,21 @@
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
+@@ -680,17 +680,6 @@
+ 		return -EINVAL;
+ 	}
+ 
+-	/*
+-	 * Only allow async flips for fast updates that don't change the FB
+-	 * pitch, the DCC state, rotation, etc.
+-	 */
+-	if (crtc_state->async_flip &&
+-	    dm_crtc_state->update_type != UPDATE_TYPE_FAST) {
+-		drm_dbg_atomic(crtc->dev,
+-			       "[CRTC:%d:%s] async flips are only supported for fast updates\n",
+-			       crtc->base.id, crtc->name);
+-		return -EINVAL;
+-	}
+ 
+ 	if (!state->legacy_cursor_update && amdgpu_dm_crtc_vrr_active(dm_crtc_state)) {
+ 		struct drm_plane_state *primary_state;

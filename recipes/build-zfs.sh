@@ -11,10 +11,13 @@
 #   DEB_ARCH          Debian architecture being built (default host arch)
 #   OUT_DIR           where the .debs land (default $(pwd)/out)
 #   BUILD_THREADS     -j N for make (default $(nproc))
+#   ZFS_PATCHSET      patch lane applied to the extracted source before
+#                     autogen, e.g. zfs-$ZFS_VERSION. Unset means no patches.
 
 set -euo pipefail
 
 : "${ZFS_VERSION:?ZFS_VERSION required (e.g. 2.4.1)}"
+ZFS_PATCHSET="${ZFS_PATCHSET:-}"
 
 DEB_ARCH="${DEB_ARCH:-$(dpkg --print-architecture 2>/dev/null || uname -m)}"
 OUT_DIR="${OUT_DIR:-$(pwd)/out}"
@@ -33,12 +36,30 @@ if [[ ! -f "$TARBALL" ]]; then
     curl -fsSL -O "$URL"
 fi
 SRC_DIR="zfs-$ZFS_VERSION"
+FRESH_EXTRACT=0
 if [[ ! -d "$SRC_DIR" ]]; then
     echo "==> extracting"
     tar xzf "$TARBALL"
+    FRESH_EXTRACT=1
 fi
 
 cd "$SRC_DIR"
+
+# Patches are applied only to a freshly extracted tree. Re-running the recipe
+# against an existing build dir must not stack them a second time.
+if [[ -n "$ZFS_PATCHSET" && "$FRESH_EXTRACT" -eq 1 ]]; then
+    patch_dir="$ROOT/patches/$ZFS_PATCHSET"
+    if [[ ! -d "$patch_dir" ]]; then
+        echo "ERROR: ZFS_PATCHSET '$ZFS_PATCHSET' not found at $patch_dir" >&2
+        exit 1
+    fi
+    echo "==> applying patches from $patch_dir"
+    while IFS= read -r patch; do
+        [[ -n "$patch" ]] || continue
+        echo "    -> $(basename "$patch")"
+        patch -Np1 < "$patch"
+    done < <(find "$patch_dir" -maxdepth 1 -type f -name '*.patch' | sort)
+fi
 
 echo "==> build arch: DEB_ARCH=$DEB_ARCH"
 

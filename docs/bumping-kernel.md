@@ -13,10 +13,43 @@ For Smooth* the must-have DKMS set is OpenZFS (required by SmoothNAS). Rule: **l
 Check OpenZFS:
 
 ```
-$ curl -fsSL https://github.com/openzfs/zfs/raw/zfs-2.4.2/META | grep ^Linux
+$ curl -fsSL https://github.com/openzfs/zfs/raw/zfs-2.4.3/META | grep ^Linux
 Linux-Maximum: 7.0
 Linux-Minimum: 4.18
 ```
+
+### `Linux-Maximum` is a declaration, not a measurement
+
+Treat the `Linux-Maximum` line as OpenZFS telling you *what they have tested*,
+not as evidence that the code fails above it. Twice now the cap has lagged
+reality: the bumps to both `7.0` and `7.1` were **one-line META commits with no
+accompanying code change** (`7.1` was
+[PR #18682](https://github.com/openzfs/zfs/pull/18682)). By contrast the `6.19`
+bump did need real code (duplicate GCM assembly symbols). So the cap moving is
+sometimes a paperwork event and sometimes a engineering one, and you cannot tell
+which from the version number alone.
+
+Before concluding a kernel is out of reach, check whether the cap is the *only*
+thing in the way:
+
+1. Look at the commit that raised the cap upstream. One line touched? Likely no
+   code was needed.
+2. Compile it. Build the OpenZFS release against the candidate kernel with
+   `--enable-linux-experimental` (an upstream-supported flag that bypasses the
+   cap) and read the warnings, not just the exit status. Implicit-declaration
+   and incompatible-pointer warnings mean real API drift; objtool `__noreturn`
+   noise does not.
+
+This is how the `7.0.11 → 7.1.8` bump was resolved: OpenZFS `2.4.3` compiled
+clean against `7.1.8` even though its META said `7.0`, so the bump proceeded
+with a one-line carry patch instead of waiting.
+
+**Do not ship `--enable-linux-experimental` as the fix.** It works for a local
+build but cannot reach the DKMS path — `scripts/dkms.mkconf` hardcodes the
+configure arguments used when `zfs-dkms` rebuilds on the target, so the flag
+never reaches an appliance and every on-target rebuild would fail. Carry a
+`patches/zfs-<version>/` META patch instead, so the raised cap travels with the
+packaged source. See [`PATCHES.md`](PATCHES.md) and `patches/zfs-2.4.3/README.md`.
 
 Check your downstream sources:
 
@@ -41,12 +74,13 @@ Cross-reference:
 Update `build.env`:
 
 ```sh
-KERNEL_VERSION=7.0.11
+KERNEL_VERSION=7.1.8
 LOCALVERSION=-smoothkernel          # never changes under the one-kernel model
-CACHYOS_PATCHSET=cachyos-7.0.11
+CACHYOS_PATCHSET=cachyos-7.1.8
 NOBARA_PATCHSET=nobara-picks
-POST_NOBARA_PATCHSET=post-nobara-7.0.11
-ZFS_VERSION=2.4.2                   # bump if pairing requires it
+POST_NOBARA_PATCHSET=post-nobara-7.1.8
+ZFS_VERSION=2.4.3                   # bump if pairing requires it
+ZFS_PATCHSET=zfs-2.4.3              # unset when upstream META allows the kernel
 ```
 
 ### 2. Vendor the patch lanes
