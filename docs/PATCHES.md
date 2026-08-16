@@ -50,11 +50,48 @@ Bad candidates:
 - Build-system assumptions tied to Nobara's SRPM pipeline.
 - Broad desktop policy changes that do not help headless flavors.
 
+### Base-lane version lag
+
+The CachyOS base lane is cut against an early point release of a kernel line and
+is **not** necessarily refreshed as that line advances. The `7.1` lane was
+authored against `7.1-rc1` (BORE 6.6.3, committed 2026-05-04) and had not been
+touched by the time `7.1.8` shipped three months later; upstream BORE itself
+only published a `7.1-rc1` patch. The result is that a lane which is nominally
+"for 7.1" can fail against a current `7.1.x`.
+
+Expect this on every major bump. Budget for a rebase rather than assuming the
+lane is ready, and check both CachyOS and
+[`firelzrd/bore-scheduler`](https://github.com/firelzrd/bore-scheduler) for a
+newer revision before hand-rebasing. If you do rebase, record it in the lane
+README with the failing hunk, what upstream changed underneath it, and the
+condition for dropping the local delta — see `patches/cachyos-7.1.8/README.md`
+for the worked example.
+
+Fuzz is the early warning. A hunk that applies "with fuzz N" is telling you
+upstream is drifting under the patch; record it, and rebase rather than accept
+once the fuzz reaches code (as opposed to documentation) hunks.
+
 ### Final lane: `patches/post-nobara-<version>/`
 
 This lane is for local carry patches and rebased follow-ons that must apply
 after the secondary lane. It should stay small. A growing final lane is a signal
 that we are maintaining too much kernel code ourselves.
+
+## OpenZFS lane: `patches/zfs-<version>/`
+
+Kernel lanes are not the only patch stack. `recipes/build-zfs.sh` applies
+`patches/$ZFS_PATCHSET/*.patch` to the extracted OpenZFS release tarball before
+`autogen.sh`, using the same conventions: ordered numeric prefixes, vendored in
+git, README with source, reason and removal condition.
+
+This lane exists because OpenZFS' `META` carries a `Linux-Maximum` cap that
+`configure` enforces as a hard error, and that cap routinely lags the kernels we
+ship. Keep the lane as small as the kernel lanes — a growing ZFS lane means we
+are maintaining a fork of a storage layer, which is a much worse place to be
+than maintaining kernel deltas.
+
+`ZFS_PATCHSET` is optional. Leave it unset when the OpenZFS release needs no
+patches, which is the state we want to return to.
 
 ## Patch Directory README
 

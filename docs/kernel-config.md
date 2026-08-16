@@ -32,11 +32,39 @@ The following settings are load-bearing across every flavor. Changing one has cr
 | `CONFIG_SCHED_EXT` | `m` | sched-ext available as a module; not default, escape hatch |
 | amd64 microarch baseline | `x86-64-v2` | Inclusivity for HTPC/NAS on ~2009+ hardware |
 | arm64 baseline | generic Debian arm64 | Broadest viable arm64 support; board-specific boot enablement is outside this config |
-| `CONFIG_MODULE_SIG_FORCE` | `y` | Shipped kernels reject unsigned modules; release-built packaged modules must be signed in the signing-capable release path and DKMS modules are signed on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
+| `CONFIG_MODULE_SIG` | `y` | Modules carry signatures; packaged modules are signed at build time and DKMS modules on-host via `smooth-secureboot`. See [`signing.md`](signing.md). |
+| `CONFIG_MODULE_SIG_FORCE` | **not set** (target: `y`) | **Aspirational, not current state — see the note below before "fixing" this.** |
 | `CONFIG_DEBUG_INFO` | `n` | Set by `STRIP_DEBUG_INFO=1` default in build-kernel.sh to avoid debug package bloat |
 | `CONFIG_DEBUG_INFO_BTF` | `n` | Also disabled by the same stripped-debug profile |
 | `CONFIG_SYSTEM_TRUSTED_KEYS` | build-time injected Rakuen module cert | Release builds inject the public cert for packaged-module signing; the checked-in config does not carry secrets or machine-local paths |
 | `CONFIG_SYSTEM_REVOCATION_KEYS` | `""` | Explicitly managed by our release process rather than inherited from Debian packaging defaults |
+
+### Note: module-signature enforcement is not on, and cannot simply be switched on
+
+`CONFIG_MODULE_SIG_FORCE` has never been set in a shipped SmoothKernel config —
+not in `6.19.12`, `7.0.11`, or `7.1.8`. Earlier revisions of this table listed
+`y` as if it were current state. It was not, and turning it on today breaks
+storage. Measured on a `7.1.8` test VM:
+
+| Kernel / mode | lockdown | unsigned module | `zfs` (DKMS-signed) |
+|---|---|---|---|
+| Debian, Secure Boot on | `[integrity]` | rejected | n/a |
+| SmoothKernel, default | `[none]` | **loads** (taint 12289) | loads |
+| SmoothKernel, `lockdown=integrity` | `[integrity]` | rejected | **rejected** |
+
+Enforcement rejects the DKMS module too, because the per-host MOK key is only
+trusted once it has been enrolled through UEFI — which requires Secure Boot,
+which requires a kernel signed by a trusted key. Enabling enforcement before
+that chain exists makes ZFS (and `smoothfs`) unloadable on every appliance.
+
+Note also that Debian gets its Secure-Boot-triggered enforcement from
+`CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT`, which is a **Debian downstream patch**.
+That symbol does not exist in a pristine kernel.org tree, so it cannot be
+enabled from `scripts/config`; `olddefconfig` silently drops it. Adding it would
+mean carrying the patch in `post-nobara-<version>/`.
+
+The enforcement contract and its required ordering live in
+[`signing.md`](signing.md). Do not raise enforcement here in isolation.
 
 ## Filesystems
 

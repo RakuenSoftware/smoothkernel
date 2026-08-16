@@ -1,0 +1,65 @@
+diff --git a/drivers/gpu/drm/atmel-hlcdc/atmel_hlcdc_dc.c b/drivers/gpu/drm/atmel-hlcdc/atmel_hlcdc_dc.c
+--- a/drivers/gpu/drm/atmel-hlcdc/atmel_hlcdc_dc.c
++++ b/drivers/gpu/drm/atmel-hlcdc/atmel_hlcdc_dc.c
+@@ -744,6 +744,7 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
+ 	dev->mode_config.max_width = dc->desc->max_width;
+ 	dev->mode_config.max_height = dc->desc->max_height;
+ 	dev->mode_config.funcs = &mode_config_funcs;
++	dev->mode_config.atomic_async_page_flip_not_supported = true;
+ 	dev->mode_config.async_page_flip = true;
+ 
+ 	return 0;
+diff --git a/drivers/gpu/drm/i915/display/intel_display_driver.c b/drivers/gpu/drm/i915/display/intel_display_driver.c
+--- a/drivers/gpu/drm/i915/display/intel_display_driver.c
++++ b/drivers/gpu/drm/i915/display/intel_display_driver.c
+@@ -128,6 +128,7 @@ static void intel_mode_config_init(struct intel_display *display)
+ 	mode_config->funcs = &intel_mode_funcs;
+ 	mode_config->helper_private = &intel_mode_config_funcs;
+ 
++	mode_config->atomic_async_page_flip_not_supported = true;
+ 	mode_config->async_page_flip = HAS_ASYNC_FLIPS(display);
+ 
+ 	/*
+diff --git a/drivers/gpu/drm/nouveau/nouveau_display.c b/drivers/gpu/drm/nouveau/nouveau_display.c
+--- a/drivers/gpu/drm/nouveau/nouveau_display.c
++++ b/drivers/gpu/drm/nouveau/nouveau_display.c
+@@ -680,6 +680,7 @@ nouveau_display_create(struct drm_device *dev)
+ 		dev->mode_config.async_page_flip = false;
+ 	else
+ 		dev->mode_config.async_page_flip = true;
++	dev->mode_config.atomic_async_page_flip_not_supported = true;
+ 
+ 	drm_kms_helper_poll_init(dev);
+ 	drm_kms_helper_poll_disable(dev);
+diff --git a/drivers/gpu/drm/vc4/vc4_kms.c b/drivers/gpu/drm/vc4/vc4_kms.c
+--- a/drivers/gpu/drm/vc4/vc4_kms.c
++++ b/drivers/gpu/drm/vc4/vc4_kms.c
+@@ -1146,6 +1146,7 @@ int vc4_kms_load(struct drm_device *dev)
+ 	dev->mode_config.helper_private = &vc4_mode_config_helpers;
+ 	dev->mode_config.preferred_depth = 24;
+ 	dev->mode_config.async_page_flip = true;
++	dev->mode_config.atomic_async_page_flip_not_supported = true;
+ 	dev->mode_config.normalize_zpos = true;
+ 
+ 	ret = vc4_ctm_obj_init(vc4);
+diff --git a/include/drm/drm_mode_config.h b/include/drm/drm_mode_config.h
+--- a/include/drm/drm_mode_config.h
++++ b/include/drm/drm_mode_config.h
+@@ -933,6 +933,17 @@ struct drm_mode_config {
+ 	 */
+ 	bool async_page_flip;
+ 
++	/**
++	 * @atomic_async_page_flip_not_supported:
++	 *
++	 * If true, the driver does not support async page-flips with the
++	 * atomic uAPI. This is only used by older drivers that haven't yet
++	 * accommodated for &drm_crtc_state.async_flip in their atomic logic,
++	 * even if they have &drm_mode_config.async_page_flip set to true.
++	 * New drivers should not set this flag.
++	 */
++	bool atomic_async_page_flip_not_supported;
++
+ 	/**
+ 	 * @fb_modifiers_not_supported:
+ 	 *
