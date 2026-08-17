@@ -229,6 +229,14 @@ jobs:
           set -euo pipefail
           mkdir -p "dist/${{ matrix.deb_arch }}"
           cp "out/${{ matrix.deb_arch }}"/*.deb "dist/${{ matrix.deb_arch }}/"
+          # The unsigned-build marker is not a .deb, so it has to be copied
+          # explicitly or it never leaves out/ — the artifact would then look
+          # identical to a promotable one, which is the whole point of it.
+          marker="out/${{ matrix.deb_arch }}/UNSIGNED-NOT-PROMOTABLE.txt"
+          if [ -f "$marker" ]; then
+            cp "$marker" "dist/${{ matrix.deb_arch }}/"
+            echo "staged unsigned-build marker"
+          fi
           (cd "dist/${{ matrix.deb_arch }}" && sha256sum *.deb > "SHA256SUMS.${{ matrix.deb_arch }}")
           ls -lh "dist/${{ matrix.deb_arch }}/"
 
@@ -275,6 +283,18 @@ jobs:
               fi
               cp "$f" dist/
             done
+          done
+
+          # Carry the unsigned-build marker into the published release. Without
+          # this the release assets are indistinguishable from a promotable
+          # build, which is exactly what the marker exists to prevent.
+          for arch in amd64 arm64; do
+            m="release-input/packages-${arch}/UNSIGNED-NOT-PROMOTABLE.txt"
+            if [ -f "$m" ]; then
+              cp "$m" dist/
+              echo "::warning::This release was built WITHOUT signing material and is not promotable."
+              break
+            fi
           done
 
           (cd dist && sha256sum *.deb > SHA256SUMS)
