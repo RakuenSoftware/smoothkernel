@@ -90,7 +90,9 @@ ship. Keep the lane as small as the kernel lanes — a growing ZFS lane means we
 are maintaining a fork of a storage layer, which is a much worse place to be
 than maintaining kernel deltas.
 
-`ZFS_PATCHSET` is optional. Leave it unset when the OpenZFS release needs no
+`ZFS_PATCHSET` is optional. The current OpenZFS 2.4.4 release supports Linux
+7.2 upstream, so the 7.2.10 examples leave it empty and retain `zfs-2.4.3` only
+as an archived lane for older builds. Leave it unset when the OpenZFS release needs no
 patches, which is the state we want to return to.
 
 ## Patch Directory README

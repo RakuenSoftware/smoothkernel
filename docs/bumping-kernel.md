@@ -13,8 +13,8 @@ For Smooth* the must-have DKMS set is OpenZFS (required by SmoothNAS). Rule: **l
 Check OpenZFS:
 
 ```
-$ curl -fsSL https://github.com/openzfs/zfs/raw/zfs-2.4.3/META | grep ^Linux
-Linux-Maximum: 7.0
+$ curl -fsSL https://github.com/openzfs/zfs/raw/zfs-2.4.4/META | grep ^Linux
+Linux-Maximum: 7.2
 Linux-Minimum: 4.18
 ```
 
@@ -51,6 +51,12 @@ never reaches an appliance and every on-target rebuild would fail. Carry a
 `patches/zfs-<version>/` META patch instead, so the raised cap travels with the
 packaged source. See [`PATCHES.md`](PATCHES.md) and `patches/zfs-2.4.3/README.md`.
 
+OpenZFS 2.4.4 now supplies the Linux 7.2 compatibility code (including the
+`sget_fc()` conversion) and declares `Linux-Maximum: 7.2` upstream. The current
+7.2.10 line therefore clears `ZFS_PATCHSET`; the archived 2.4.3 META patch stays
+available for reproducing older builds. Packaging serialization, gzip RPM
+payloads, and the linux-headers virtual Provides fix remain required.
+
 Check your downstream sources:
 
 ```
@@ -74,13 +80,13 @@ Cross-reference:
 Update `build.env`:
 
 ```sh
-KERNEL_VERSION=7.1.8
+KERNEL_VERSION=7.2.10
 LOCALVERSION=-smoothkernel          # never changes under the one-kernel model
-CACHYOS_PATCHSET=cachyos-7.1.8
+CACHYOS_PATCHSET=cachyos-7.2.10
 NOBARA_PATCHSET=nobara-picks
-POST_NOBARA_PATCHSET=post-nobara-7.1.8
-ZFS_VERSION=2.4.3                   # bump if pairing requires it
-ZFS_PATCHSET=zfs-2.4.3              # unset when upstream META allows the kernel
+POST_NOBARA_PATCHSET=post-nobara-7.2.10
+ZFS_VERSION=2.4.4                   # native Linux 7.2 support
+ZFS_PATCHSET=                       # no carry needed for 2.4.4
 ```
 
 ### 2. Vendor the patch lanes
@@ -115,6 +121,12 @@ make zfs DEB_ARCH=amd64
 make zfs DEB_ARCH=arm64
 find out -maxdepth 2 -name '*.deb'
 ```
+
+Run `make check-zfs-dkms DEB_ARCH=<arch>` on each native builder after both
+package builds. It extracts the generated zfs-dkms package and invokes its
+normal configure/build hook against the complete matching kernel tree, checks
+`zfs.ko`/`spl.ko` vermagic, and refuses an experimental-cap bypass. CI runs this
+before uploading or publishing packages. It does not install or load modules.
 
 Both architectures must build clean. Kernel build failures are usually patch-conflict or config drift; ZFS build failures are usually a kernel-API break that OpenZFS hasn't caught up to yet.
 
