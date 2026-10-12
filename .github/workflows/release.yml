@@ -109,7 +109,7 @@ jobs:
       # again by the cleanup step below (which runs even if the build fails).
       #
       # Fork PRs do not receive secrets. Those builds still run, but produce
-      # unsigned developer artifacts — the release job refuses to publish them.
+      # unsigned developer artifacts marked as not promotable.
       - name: Materialize signing material
         id: signing
         env:
@@ -339,4 +339,5 @@ jobs:
             dist/*.deb
             dist/SHA256SUMS
             dist/manifest.json
+            dist/UNSIGNED-NOT-PROMOTABLE.txt
           generate_release_notes: true
