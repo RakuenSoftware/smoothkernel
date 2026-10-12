@@ -22,12 +22,46 @@
 #   MODE              build (default) or update-config
 #   STRIP_DEBUG_INFO  if "1" (default), disable debug-info packaging
 #                     to slim the image and speed up packaging
+#
+# Signing (see docs/signing.md). All optional; unset means a developer
+# build, which is explicitly NOT promotable.
+#   MODULE_SIGNING_KEY   PEM holding the module-signing private key AND its
+#                        certificate. Packaged modules are signed with it and
+#                        the certificate is embedded in the kernel's builtin
+#                        trusted keyring, so shipped modules load without any
+#                        per-machine enrolment. Unset => the kernel generates
+#                        an ephemeral throwaway key at build time.
+#   SECUREBOOT_SIGNING_KEY   private key (PEM) used to sign the kernel IMAGE
+#   SECUREBOOT_SIGNING_CERT  matching certificate (PEM) for that key
+#                        Both required together. Without them the image has no
+#                        EFI signature and shim refuses it on a Secure Boot
+#                        machine with "bad shim signature".
 
 set -euo pipefail
 
 : "${KERNEL_VERSION:?KERNEL_VERSION required (e.g. 6.18.22)}"
 : "${LOCALVERSION:?LOCALVERSION required (e.g. -smoothkernel)}"
 [[ "$LOCALVERSION" == -* ]] || { echo "LOCALVERSION must start with '-'"; exit 1; }
+
+MODULE_SIGNING_KEY="${MODULE_SIGNING_KEY:-}"
+SECUREBOOT_SIGNING_KEY="${SECUREBOOT_SIGNING_KEY:-}"
+SECUREBOOT_SIGNING_CERT="${SECUREBOOT_SIGNING_CERT:-}"
+
+# Fail early on a half-configured signing setup rather than silently shipping
+# an unsigned image that only fails later, on a Secure Boot machine.
+if [[ -n "$SECUREBOOT_SIGNING_KEY" || -n "$SECUREBOOT_SIGNING_CERT" ]]; then
+    if [[ -z "$SECUREBOOT_SIGNING_KEY" || -z "$SECUREBOOT_SIGNING_CERT" ]]; then
+        echo "ERROR: SECUREBOOT_SIGNING_KEY and SECUREBOOT_SIGNING_CERT must be set together" >&2
+        exit 1
+    fi
+    for f in "$SECUREBOOT_SIGNING_KEY" "$SECUREBOOT_SIGNING_CERT"; do
+        [[ -r "$f" ]] || { echo "ERROR: cannot read Secure Boot signing material: $f" >&2; exit 1; }
+    done
+fi
+if [[ -n "$MODULE_SIGNING_KEY" && ! -r "$MODULE_SIGNING_KEY" ]]; then
+    echo "ERROR: cannot read MODULE_SIGNING_KEY: $MODULE_SIGNING_KEY" >&2
+    exit 1
+fi
 
 DEB_ARCH="${DEB_ARCH:-amd64}"
 OUT_DIR="${OUT_DIR:-$(pwd)/out}"
@@ -122,6 +156,89 @@ add_headers_virtual_provides() {
     rm -rf "$tmp"
 }
 
+# Sign the kernel image inside a built linux-image .deb, so the packaged
+# vmlinuz carries an EFI signature and shim will load it under Secure Boot.
+# bindeb-pkg has no signing step of its own, so this unpacks, signs, repacks —
+# the same approach add_headers_virtual_provides() already uses.
+sign_kernel_image_in_deb() {
+    local deb="$1"
+    local tmp img
+
+    tmp="$(mktemp -d)"
+    dpkg-deb -R "$deb" "$tmp" >/dev/null
+
+    # -print -quit rather than `| head -1`: under `set -o pipefail` find takes
+    # SIGPIPE when head exits early, which fails the whole script silently.
+    img="$(find "$tmp/boot" -maxdepth 1 -name 'vmlinuz-*' -print -quit)"
+    if [[ -z "$img" ]]; then
+        echo "ERROR: no vmlinuz found in $(basename "$deb")" >&2
+        rm -rf "$tmp"; exit 1
+    fi
+
+    sbsign --key "$SECUREBOOT_SIGNING_KEY" --cert "$SECUREBOOT_SIGNING_CERT" \
+           --output "$img.signed" "$img"
+    mv "$img.signed" "$img"
+
+    # Verify before repacking. sbsign exiting 0 is not proof the signature is
+    # attached and readable, and an unbootable kernel discovered on the test
+    # machine is far more expensive than failing here.
+    if ! sbverify --list "$img" 2>&1 | grep -q 'signature'; then
+        echo "ERROR: signed image has no readable signature table" >&2
+        sbverify --list "$img" 2>&1 | sed 's/^/    /' >&2
+        rm -rf "$tmp"; exit 1
+    fi
+
+    dpkg-deb -b "$tmp" "${deb}.signed" >/dev/null
+    mv "${deb}.signed" "$deb"
+    rm -rf "$tmp"
+    echo "    signed $(basename "$deb")"
+}
+
+# Assert that what we built matches what we intended to build. Called after
+# packaging; failures here are release-blocking, not advisory.
+verify_signing() {
+    local deb="$1"
+    local tmp img mod signer
+
+    tmp="$(mktemp -d)"
+    dpkg-deb -R "$deb" "$tmp" >/dev/null
+
+    if [[ -n "$MODULE_SIGNING_KEY" ]]; then
+        mod="$(find "$tmp/lib/modules" -name '*.ko*' -print -quit 2>/dev/null)"
+        if [[ -z "$mod" ]]; then
+            echo "ERROR: no module found to verify signing against" >&2
+            rm -rf "$tmp"; exit 1
+        fi
+        # .ko.xz has to be decompressed before modinfo can read the signature.
+        case "$mod" in
+            *.xz) xz -dk "$mod" 2>/dev/null; mod="${mod%.xz}" ;;
+            *.zst) zstd -dq -k "$mod" 2>/dev/null; mod="${mod%.zst}" ;;
+        esac
+        signer="$(modinfo -F signer "$mod" 2>/dev/null | head -1)"
+        if [[ -z "$signer" ]]; then
+            echo "ERROR: packaged module $(basename "$mod") is UNSIGNED" >&2
+            rm -rf "$tmp"; exit 1
+        fi
+        if [[ "$signer" == "Build time autogenerated kernel key" ]]; then
+            echo "ERROR: packaged module signed with the ephemeral build key" >&2
+            echo "       despite MODULE_SIGNING_KEY being set." >&2
+            rm -rf "$tmp"; exit 1
+        fi
+        echo "    module signer: $signer"
+    fi
+
+    if [[ -n "$SECUREBOOT_SIGNING_KEY" ]]; then
+        img="$(find "$tmp/boot" -maxdepth 1 -name 'vmlinuz-*' -print -quit)"
+        if ! sbverify --list "$img" 2>&1 | grep -q 'signature'; then
+            echo "ERROR: packaged kernel image is not Secure Boot signed" >&2
+            rm -rf "$tmp"; exit 1
+        fi
+        echo "    image signature: present"
+    fi
+
+    rm -rf "$tmp"
+}
+
 apply_smoothkernel_profile() {
     echo "==> applying SmoothKernel profile"
 
@@ -157,6 +274,25 @@ apply_smoothkernel_profile() {
                        --disable DEBUG_INFO_BTF \
                        --disable SYSTEM_TRUSTED_KEYS \
                        --disable SYSTEM_REVOCATION_KEYS
+    fi
+
+    # Module signing key. Must come after the block above, which clears
+    # SYSTEM_TRUSTED_KEYS.
+    #
+    # MODULE_SIG_KEY is the PEM the kernel signs modules with. Pointing
+    # SYSTEM_TRUSTED_KEYS at the same PEM embeds its certificate in the builtin
+    # trusted keyring, so packaged modules are trusted without any per-machine
+    # enrolment. DKMS modules are a separate trust domain (per-host MOK) —
+    # see docs/signing.md.
+    if [[ -n "$MODULE_SIGNING_KEY" ]]; then
+        echo "==> signing modules with the supplied release key"
+        scripts/config --set-str MODULE_SIG_KEY "$MODULE_SIGNING_KEY" \
+                       --set-str SYSTEM_TRUSTED_KEYS "$MODULE_SIGNING_KEY"
+    else
+        echo "==> WARNING: MODULE_SIGNING_KEY unset — the kernel will generate an"
+        echo "    ephemeral module-signing key. Packaged modules will report"
+        echo "    signer 'Build time autogenerated kernel key'. This is a"
+        echo "    developer build and is NOT promotable (docs/signing.md)."
     fi
 
     # NAS / server network-path tuning.
@@ -392,6 +528,17 @@ for f in "../linux-image-${KERNEL_VERSION}-${LOCAL_TAG}"*"_${KERNEL_VERSION}-"*"
     cp -v "$f" "$dest"
     if [[ "$(basename "$dest")" == linux-headers-* ]]; then
         add_headers_virtual_provides "$dest"
+    fi
+    if [[ "$(basename "$dest")" == linux-image-* ]]; then
+        if [[ -n "$SECUREBOOT_SIGNING_KEY" ]]; then
+            echo "==> Secure Boot signing $(basename "$dest")"
+            sign_kernel_image_in_deb "$dest"
+        else
+            echo "==> WARNING: no SECUREBOOT_SIGNING_KEY — kernel image is unsigned"
+            echo "    and shim will reject it on a Secure Boot machine."
+        fi
+        echo "==> verifying signing of $(basename "$dest")"
+        verify_signing "$dest"
     fi
     moved+=("$f")
 done
