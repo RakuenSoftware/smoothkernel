@@ -91,7 +91,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
-            libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils zstd \
+            libdw-dev pahole rsync debhelper kmod dkms fakeroot dpkg-dev cpio xz-utils zstd \
             autoconf automake libtool gawk alien rpm rpm2cpio dh-python po-debconf \
             uuid-dev libudev-dev libblkid-dev libtirpc-dev libcurl4-openssl-dev \
             libaio-dev libattr1-dev libffi-dev zlib1g-dev libpam0g-dev \
@@ -169,6 +169,9 @@ jobs:
 
       - name: Build OpenZFS
         run: make zfs DEB_ARCH=${{ matrix.deb_arch }} BUILD_THREADS="$(nproc)"
+
+      - name: Validate packaged ZFS DKMS against the built kernel
+        run: sudo make ENV_FILE=examples/smooth.env check-zfs-dkms DEB_ARCH=${{ matrix.deb_arch }} BUILD_THREADS="$(nproc)"
 
       # Independent of the checks inside build-kernel.sh: this re-derives the
       # answer from the finished .deb, so a bug in the recipe's own verification

@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000003 Mon Sep 17 00:00:00 2001
+From: SmoothNAS ops <ops@smoothnas.invalid>
+Date: Thu, 24 Apr 2026 16:00:00 +0000
+Subject: [PATCH] sunrpc: bump RPC_DEF_SLOT_TABLE from 16 to 128
+
+On a 2.5 Gbps LAN NFSv4.2 backup against a real source we measured
+sustained throughput going from 2.05 Gbps (82% of line) to 2.30 Gbps
+(92% of line) just by writing 128 to
+/sys/module/sunrpc/parameters/tcp_slot_table_entries before mount.
+The workload was 14.23 GB / 909 files (avg ~15 MB, long tail of
+sub-MB media). With the upstream default of 16 slots, the
+per-file LOOKUP/OPEN/READ/CLOSE RPCs that dominate small-file
+throughput on a single TCP connection serialise at depth 16 and
+leave the pipe underutilised.
+
+The auto-grow path in xprt_alloc_slot still expands up to
+RPC_MAX_SLOT_TABLE_LIMIT (65536) at runtime, but only after it
+observes congestion on the existing slot table. Seeding the
+initial window higher avoids the first few seconds of a fresh
+mount being bottlenecked on a window that's about to grow anyway.
+
+Userspace can still override the initial value via
+  sysctl sunrpc.tcp_slot_table_entries=<N>
+or at boot via
+  sunrpc.tcp_slot_table_entries=<N>
+and smoothnas tierd sets 128 explicitly on every boot. This patch
+bakes the same value into the appliance-shipped kernel so mounts
+that happen before tierd's tuning phase (initramfs rescue paths,
+systemd early mnt-* units ordered ahead of tierd.service) pick up
+the same setting.
+
+No ABI change. RPC_MIN_SLOT_TABLE stays at 2 and
+RPC_MAX_SLOT_TABLE_LIMIT stays at 65536.
+
+Signed-off-by: SmoothNAS ops <ops@smoothnas.invalid>
+---
+ include/linux/sunrpc/xprt.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/sunrpc/xprt.h b/include/linux/sunrpc/xprt.h
+--- a/include/linux/sunrpc/xprt.h
++++ b/include/linux/sunrpc/xprt.h
+@@ -20,7 +20,7 @@
+ #include <linux/sunrpc/msg_prot.h>
+
+ #define RPC_MIN_SLOT_TABLE	(2U)
+-#define RPC_DEF_SLOT_TABLE	(16U)
++#define RPC_DEF_SLOT_TABLE	(128U)
+ #define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
+ #define RPC_MAX_SLOT_TABLE	RPC_MAX_SLOT_TABLE_LIMIT
+
+--
+2.40.0

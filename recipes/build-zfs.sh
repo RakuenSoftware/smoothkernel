@@ -28,6 +28,31 @@ BUILD_DIR="$ROOT/build/zfs-$ZFS_VERSION-$DEB_ARCH"
 TARBALL="zfs-$ZFS_VERSION.tar.gz"
 URL="https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/$TARBALL"
 
+# alien does not translate these RPM requirements into Debian dependencies.
+# The ZFS initramfs hook refuses to run without a BusyBox implementation,
+# including on otherwise valid minimal Debian/cloud installations.
+add_initramfs_dependencies() {
+    local deb="$1" tmp control depends
+    tmp="$(mktemp -d)"
+    dpkg-deb -R "$deb" "$tmp" >/dev/null
+    control="$tmp/DEBIAN/control"
+    depends="$(sed -n 's/^Depends: //p' "$control")"
+    if ! grep -Eq '(^|[,|])[[:space:]]*initramfs-tools([[:space:],(|]|$)' <<< "$depends"; then
+        depends="${depends:+$depends, }initramfs-tools"
+    fi
+    if ! grep -Eq '(^|[,|])[[:space:]]*busybox(-static)?([[:space:],(|]|$)' <<< "$depends"; then
+        depends="${depends:+$depends, }busybox | busybox-static"
+    fi
+    if grep -q '^Depends:' "$control"; then
+        sed -i "s/^Depends:.*/Depends: $depends/" "$control"
+    else
+        sed -i "/^Version: /a Depends: $depends" "$control"
+    fi
+    dpkg-deb -b "$tmp" "${deb}.patched" >/dev/null
+    mv "${deb}.patched" "$deb"
+    rm -rf "$tmp"
+}
+
 mkdir -p "$BUILD_DIR" "$OUT_DIR"
 cd "$BUILD_DIR"
 
@@ -91,6 +116,9 @@ echo "==> collecting .debs into $OUT_DIR"
 shopt -s nullglob
 moved=()
 for f in *.deb; do
+    if [[ "$f" == zfs-initramfs_* ]]; then
+        add_initramfs_dependencies "$f"
+    fi
     cp -v "$f" "$OUT_DIR/"
     moved+=("$f")
 done

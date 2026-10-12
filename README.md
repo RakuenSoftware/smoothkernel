@@ -95,6 +95,9 @@ make kernel DEB_ARCH=amd64
 make kernel DEB_ARCH=arm64
 make zfs DEB_ARCH=amd64
 make zfs DEB_ARCH=arm64
+# On each native builder after kernel + ZFS packaging:
+make check-zfs-dkms DEB_ARCH=amd64
+make check-zfs-dkms DEB_ARCH=arm64
 ```
 
 Artifacts are copied to `out/<arch>/` when using the sample `build.env`.

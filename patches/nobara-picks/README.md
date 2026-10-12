@@ -28,3 +28,9 @@ to the pristine kernel.org + BORE base:
   PS5 controller pollrate tuning
 - Logitech G923 PlayStation wheel support
 - `xpadneo` Bluetooth Xbox controller integration
+
+## Linux 7.2.10 refresh
+
+All three picks still apply after `cachyos-7.2.10`. The USB pollrate patch
+retains fuzz 1 on its documentation hunk (offset 216); its code hunks apply
+without fuzz. No controller behavior changes were introduced in this bump.
