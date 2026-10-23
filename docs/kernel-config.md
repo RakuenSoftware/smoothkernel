@@ -140,6 +140,10 @@ When a kernel bump introduces new config symbols (common on major bumps):
 2. Review the resulting diff. Sometimes a new option defaults to `y` and bloats the image; sometimes to `n` and disables something we want. Check the diff manually.
 3. Run `make check-rocm-config` before review sign-off; it guards the amd64
    `amdgpu`/HSA symbols that SmoothNAS ROCm plugins need for `/dev/kfd`.
+   `make check-router-config` guards, for every arch, the netfilter (inet
+   tables, NAT, flowtable) and PPPoE symbols SmoothRouter needs. The build
+   also runs it against the resolved `.config`, since `olddefconfig` drops a
+   symbol whose parents are unset even when the profile asks for it.
 4. Commit the updated `configs/smooth-<arch>.config` and `configs/<kernel-version>/smooth-<arch>.config` files as part of the kernel-bump PR.
 
 ## Out-of-tree modules

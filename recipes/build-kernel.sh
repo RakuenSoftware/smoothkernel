@@ -338,20 +338,49 @@ apply_smoothkernel_profile() {
                    --module NFS_FS \
                    --module NFSD \
                    --module CIFS
+    # Router netfilter path (SmoothRouter). The NFT_* expressions below depend
+    # on parents that have no default — NF_TABLES_INET, NF_NAT, NF_FLOW_TABLE —
+    # so they are set explicitly; otherwise olddefconfig silently drops the
+    # children on a seed that lacks the parents (the arm64 seed did, shipping
+    # a kernel with no NAT, no inet tables and no flowtable).
+    # scripts/check-router-config.sh asserts the result for every arch.
     scripts/config --enable NETFILTER \
+                   --enable NETFILTER_ADVANCED \
+                   --module NF_CONNTRACK \
+                   --enable NF_CONNTRACK_MARK \
+                   --module NF_NAT \
                    --module NF_TABLES \
+                   --enable NF_TABLES_INET \
+                   --enable NF_TABLES_IPV4 \
+                   --enable NF_TABLES_IPV6 \
+                   --enable NF_TABLES_NETDEV \
                    --module NFT_CT \
                    --module NFT_MASQ \
                    --module NFT_NAT \
                    --module NFT_REJECT \
+                   --module NFT_REJECT_INET \
                    --module NFT_LOG \
                    --module NFT_LIMIT \
                    --module NFT_COUNTER \
                    --module NFT_FIB \
                    --module NFT_FIB_INET \
+                   --module NFT_FIB_IPV4 \
+                   --module NFT_FIB_IPV6 \
                    --module NFT_REDIR \
+                   --module NF_FLOW_TABLE \
+                   --module NF_FLOW_TABLE_INET \
                    --module NFT_FLOW_OFFLOAD \
                    --module WIREGUARD
+    scripts/config --module PPP \
+                   --module PPPOX \
+                   --module PPPOE \
+                   --module PPP_ASYNC \
+                   --module VLAN_8021Q \
+                   --module BRIDGE \
+                   --module IFB \
+                   --module NET_SCH_CAKE \
+                   --module NET_SCH_HTB \
+                   --module LEDS_TRIGGER_NETDEV
     scripts/config --module BLK_DEV_NVME \
                    --module ATA \
                    --module SATA_AHCI \
@@ -363,6 +392,7 @@ apply_smoothkernel_profile() {
                    --module IXGBE \
                    --module I40E \
                    --module R8169 \
+                   --enable R8169_LEDS \
                    --module ATLANTIC \
                    --module MLX4_EN \
                    --module MLX5_CORE \
@@ -496,6 +526,11 @@ else
 fi
 
 apply_smoothkernel_profile
+
+# Assert the resolved config, not just the seed: olddefconfig drops any
+# symbol whose dependencies are unmet, and that is how a kernel without NAT
+# shipped for arm64.
+"$ROOT/scripts/check-router-config.sh" .config
 
 if [[ "$MODE" == "update-config" ]]; then
     echo "==> writing refreshed configs"
