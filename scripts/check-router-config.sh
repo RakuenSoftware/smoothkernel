@@ -33,6 +33,11 @@ for cfg in "$@"; do
     for symbol in PPP PPPOE VLAN_8021Q BRIDGE WIREGUARD TUN; do
         require_config "$symbol"
     done
+    # routerd's kernel tests (go test -tags kerneltest): dummy links for the
+    # ruleset permutations, /proc/net/nf_conntrack to see offloaded flows.
+    for symbol in DUMMY NF_CONNTRACK_PROCFS; do
+        require_config "$symbol"
+    done
 done
 
 if [[ $failed -ne 0 ]]; then

@@ -348,6 +348,7 @@ apply_smoothkernel_profile() {
                    --enable NETFILTER_ADVANCED \
                    --module NF_CONNTRACK \
                    --enable NF_CONNTRACK_MARK \
+                   --enable NF_CONNTRACK_PROCFS \
                    --module NF_NAT \
                    --module NF_TABLES \
                    --enable NF_TABLES_INET \
@@ -380,7 +381,8 @@ apply_smoothkernel_profile() {
                    --module IFB \
                    --module NET_SCH_CAKE \
                    --module NET_SCH_HTB \
-                   --module LEDS_TRIGGER_NETDEV
+                   --module LEDS_TRIGGER_NETDEV \
+                   --module DUMMY
     scripts/config --module BLK_DEV_NVME \
                    --module ATA \
                    --module SATA_AHCI \
