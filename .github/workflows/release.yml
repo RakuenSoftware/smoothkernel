@@ -101,6 +101,9 @@ jobs:
       - name: Check ROCm kernel config
         run: make check-rocm-config
 
+      - name: Check router kernel config
+        run: make check-router-config
+
       - name: Seed build.env
         run: cp examples/smooth.env build.env
 
