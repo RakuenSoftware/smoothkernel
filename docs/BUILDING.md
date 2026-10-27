@@ -17,10 +17,10 @@ sudo apt-get update
 sudo apt-get install -y \
   build-essential bc bison flex libelf-dev libssl-dev libncurses-dev \
   libdw-dev pahole rsync debhelper kmod fakeroot dpkg-dev cpio xz-utils zstd \
-  autoconf automake libtool gawk alien rpm rpm2cpio dh-python po-debconf \
+  autoconf automake libtool gawk dh-python dh-dkms po-debconf lsb-release \
   uuid-dev libudev-dev libblkid-dev libtirpc-dev libcurl4-openssl-dev \
   libaio-dev libattr1-dev libffi-dev zlib1g-dev libpam0g-dev \
-  python3 python3-dev python3-cffi python3-setuptools python3-packaging \
+  python3 python3-dev python3-all-dev python3-cffi python3-setuptools python3-packaging python3-sphinx \
   python3-distlib parted
 ```
 
@@ -137,8 +137,10 @@ make zfs DEB_ARCH=amd64
 make zfs DEB_ARCH=arm64
 ```
 
-The recipe downloads the configured OpenZFS release, runs its packaging build,
-and copies resulting `.deb` files to `OUT_DIR`. The `zfs-dkms` package is not
+The recipe downloads the configured OpenZFS release, builds it with OpenZFS's
+own Debian packaging (`make native-deb-utils`, which declares real package
+dependencies) and copies the resulting `openzfs-*` `.deb` files to `OUT_DIR`.
+The `openzfs-zfs-dkms` package is not
 tied to one kernel at package build time; it builds on the target machine
 against installed SmoothKernel headers.
 

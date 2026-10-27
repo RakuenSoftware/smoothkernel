@@ -34,7 +34,7 @@ so each build of `main` is distinct and newer than the last:
 | `linux-libc-dev` | `linux-libc-dev_7.2.10-68_amd64.deb` |
 | `linux-image-smoothkernel` (metapackage) | `linux-image-smoothkernel_7.2.10-68_amd64.deb` |
 | `linux-headers-smoothkernel` (metapackage) | `linux-headers-smoothkernel_7.2.10-68_amd64.deb` |
-| OpenZFS | `zfs_2.4.4-68_amd64.deb`, `zfs-dkms_2.4.4-68_amd64.deb`, ... |
+| OpenZFS | `openzfs-zfsutils_2.4.4-68_amd64.deb`, `openzfs-zfs-dkms_2.4.4-68_all.deb`, ... |
 
 The kernel release (`uname -r`) is `7.2.10-68-smoothkernel`, so a new build
 installs alongside the running kernel rather than replacing its modules, and

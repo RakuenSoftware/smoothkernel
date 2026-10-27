@@ -41,8 +41,8 @@ SmoothKernel owns:
 - `patches/`: ordered, vendored patch lanes for the current kernel line.
 - `recipes/build-kernel.sh`: kernel.org tarball -> patches -> config -> Debian
   kernel packages.
-- `recipes/build-zfs.sh`: OpenZFS release tarball -> `zfs-dkms` and userspace
-  Debian packages.
+- `recipes/build-zfs.sh`: OpenZFS release tarball -> `openzfs-zfs-dkms` and
+  userspace Debian packages.
 - `templates/`: DKMS packaging and kernel compatibility templates for
   out-of-tree modules in consuming repos.
 - `docs/`: cross-repo technical documentation for the Smooth* base platform.
@@ -112,8 +112,9 @@ linux-headers-<kernel-version>-smoothkernel_*.deb
 linux-libc-dev_*.deb
 ```
 
-Typical OpenZFS outputs include `zfs-dkms`, `zfsutils-linux`, and supporting
-library packages produced by OpenZFS's Debian packaging.
+OpenZFS outputs are OpenZFS's native Debian packages: `openzfs-zfs-dkms`,
+`openzfs-zfsutils`, `openzfs-zfs-initramfs` and the supporting `openzfs-lib*`
+libraries.
 
 For host package requirements, resource expectations, output details, and test
 install commands, see [docs/BUILDING.md](docs/BUILDING.md).

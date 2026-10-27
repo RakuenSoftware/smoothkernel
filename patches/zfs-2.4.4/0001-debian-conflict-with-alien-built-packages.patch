@@ -1,0 +1,72 @@
+Subject: [PATCH] debian: conflict with the alien-built package names
+
+SmoothKernel releases up to build 71 shipped OpenZFS as alien-converted
+packages (zfs-dkms, libzfs7, libnvpair3, ...). The native packages replace
+them, but for these names upstream declares no Conflicts, so apt would keep
+both installed -- for zfs-dkms that is two DKMS registrations of zfs/2.4.4.
+Conflicts makes apt remove the old package when the new one comes in.
+
+--- a/contrib/debian/control
++++ b/contrib/debian/control
+@@ -35,7 +35,7 @@
+ Depends: ${misc:Depends}, ${shlibs:Depends}
+ Breaks: libnvpair1, libnvpair3
+ Replaces: libnvpair1, libnvpair3, libnvpair3linux
+-Conflicts: libnvpair3linux
++Conflicts: libnvpair3linux, libnvpair3
+ Description: Solaris name-value library for Linux
+  This library provides routines for packing and unpacking nv pairs for
+  transporting data across process boundaries, transporting between
+@@ -46,7 +46,7 @@
+ Architecture: linux-any
+ Depends: libpam-runtime, ${misc:Depends}, ${shlibs:Depends}
+ Replaces: libpam-zfs
+-Conflicts: libpam-zfs
++Conflicts: libpam-zfs, pam-zfs-key
+ Description: PAM module for managing encryption keys for ZFS
+  OpenZFS is a storage platform that encompasses the functionality of
+  traditional filesystems and volume managers. It supports data checksums,
+@@ -61,7 +61,7 @@
+ Depends: ${misc:Depends}, ${shlibs:Depends}
+ Breaks: libuutil1, libuutil3
+ Replaces: libuutil1, libuutil3, libuutil3linux
+-Conflicts: libuutil3linux
++Conflicts: libuutil3linux, libuutil3
+ Description: Solaris userland utility library for Linux
+  This library provides a variety of glue functions for ZFS on Linux:
+   * libspl: The Solaris Porting Layer userland library, which provides APIs
+@@ -84,7 +84,7 @@
+          openzfs-libzpool7 (= ${binary:Version}),
+          ${misc:Depends}
+ Replaces: libzfslinux-dev
+-Conflicts: libzfslinux-dev
++Conflicts: libzfslinux-dev, libzfs7-devel
+ Provides: libnvpair-dev, libuutil-dev
+ Description: OpenZFS filesystem development files for Linux
+  Header files and static libraries for compiling software against
+@@ -102,7 +102,7 @@
+ Recommends: libcurl4
+ Breaks: libzfs2, libzfs4, libzfs4linux, libzfs6linux, libzfs7linux, openzfs-libzfs4, openzfs-libzfs6
+ Replaces: libzfs2, libzfs4, libzfs4linux, libzfs6linux, libzfs7linux, openzfs-libzfs4, openzfs-libzfs6
+-Conflicts: libzfs7linux
++Conflicts: libzfs7linux, libzfs7
+ Description: OpenZFS filesystem library for Linux - general support
+  OpenZFS is a storage platform that encompasses the functionality of
+  traditional filesystems and volume managers. It supports data checksums,
+@@ -130,7 +130,7 @@
+ Depends: ${misc:Depends}, ${shlibs:Depends}
+ Breaks: libzpool2, libzpool5, libzpool6linux, libzpool7linux
+ Replaces: libzpool2, libzpool5, libzpool6linux, libzpool7linux
+-Conflicts: libzpool7linux
++Conflicts: libzpool7linux, libzpool7
+ Description: OpenZFS pool library for Linux
+  OpenZFS is a storage platform that encompasses the functionality of
+  traditional filesystems and volume managers. It supports data checksums,
+@@ -197,6 +197,7 @@
+ # suggests debhelper because e.g. `dkms mkdeb -m zfs -v 0.8.2` needs dh_testdir (#909183)
+ Suggests: debhelper
+ Breaks: spl-dkms (<< 0.8.0~rc1)
++Conflicts: zfs-dkms
+ Replaces: spl-dkms, zfs-dkms
+ Provides: openzfs-zfs-modules
+ Description: OpenZFS filesystem kernel modules for Linux

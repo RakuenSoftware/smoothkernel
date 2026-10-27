@@ -21,9 +21,9 @@ kernel_src="$ROOT/build/kernel-$KERNEL_VERSION-$DEB_ARCH/linux-$KERNEL_VERSION"
 }
 kernel_release=$(env -u LOCALVERSION -u MAKEFLAGS make -s -C "$kernel_src" ARCH="$kernel_arch" kernelrelease)
 shopt -s nullglob
-packages=("$OUT_DIR"/zfs-dkms_*.deb)
+packages=("$OUT_DIR"/openzfs-zfs-dkms_*.deb)
 [[ ${#packages[@]} -eq 1 ]] || {
-    echo "Expected exactly one zfs-dkms package in $OUT_DIR" >&2; exit 1;
+    echo "Expected exactly one openzfs-zfs-dkms package in $OUT_DIR" >&2; exit 1;
 }
 check_dir=$(mktemp -d "$ROOT/build/zfs-dkms-check-$DEB_ARCH.XXXXXX")
 dpkg-deb -x "${packages[0]}" "$check_dir/package"
