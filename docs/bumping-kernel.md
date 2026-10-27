@@ -130,7 +130,7 @@ before uploading or publishing packages. It does not install or load modules.
 
 Both architectures must build clean. Kernel build failures are usually patch-conflict or config drift; ZFS build failures are usually a kernel-API break that OpenZFS hasn't caught up to yet.
 
-Local builds are sufficient for patch/config bring-up. The promotable artifact still comes from the release path that satisfies the signing contract in [`signing.md`](signing.md) and [`CI_RELEASES.md`](CI_RELEASES.md).
+Local builds are sufficient for patch/config bring-up. What users get always comes from the CI release path in [`CI_RELEASES.md`](CI_RELEASES.md), which attests every package; signing is optional (see [`signing.md`](signing.md)).
 
 ### 5. Update out-of-tree module compat shims
 
@@ -174,22 +174,16 @@ Flavor-specific smoke tests live in their respective repos' `docs/OPERATIONS.md`
 
 ### 8. Promote to `common` main
 
-Publish the `.deb`s to the apt repo's `common` suite via the usual path documented in the sibling `apt-repo` repository:
+Promotion takes the packages of the CI release for the bump, never a local
+build. [`smoothapt`](https://github.com/RakuenSoftware/smoothapt) ingests them
+from the GitHub Release into the `common` suite, after verifying each package's
+build-provenance attestation (see [`CI_RELEASES.md`](CI_RELEASES.md#provenance)).
+Systems follow through the `linux-image-smoothkernel` and
+`linux-headers-smoothkernel` metapackages on their next `apt upgrade`.
 
-```sh
-cd ../apt-repo
-scripts/add-package.sh common ../smoothkernel/out/*/linux-*.deb
-scripts/add-package.sh common ../smoothkernel/out/*/zfs*.deb ../smoothkernel/out/*/lib*.deb
-git add pool/ dists/
-git commit -m "common: linux-smoothkernel $KERNEL_VERSION, zfs $ZFS_VERSION"
-git push
-```
+### 9. Secure-Boot verify (signed releases)
 
-Signing and GitHub Pages deploy runs in CI.
-
-### 9. Secure-Boot verify
-
-Before marking the bump promotable:
+When the release was built with signing material, before promoting it:
 
 - verify a CI-produced kernel package reports a non-empty signer on one packaged module
 - verify a Secure-Boot-enabled test machine enrolled via `smooth-secureboot` can rebuild and load ZFS
