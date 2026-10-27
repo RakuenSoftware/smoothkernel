@@ -25,6 +25,12 @@ packages=("$OUT_DIR"/openzfs-zfs-dkms_*.deb)
 [[ ${#packages[@]} -eq 1 ]] || {
     echo "Expected exactly one openzfs-zfs-dkms package in $OUT_DIR" >&2; exit 1;
 }
+# Installed through apt, the package has to bring DKMS itself (the alien-built
+# packages before build 72 declared no dependencies at all).
+depends=$(dpkg-deb -f "${packages[0]}" Depends)
+grep -Eq '(^|, )dkms( |,|$)' <<< "$depends" || {
+    echo "openzfs-zfs-dkms does not depend on dkms: Depends: $depends" >&2; exit 1;
+}
 check_dir=$(mktemp -d "$ROOT/build/zfs-dkms-check-$DEB_ARCH.XXXXXX")
 dpkg-deb -x "${packages[0]}" "$check_dir/package"
 source_dir="$check_dir/package/usr/src/zfs-$ZFS_VERSION"
