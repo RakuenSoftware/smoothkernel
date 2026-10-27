@@ -68,7 +68,7 @@ smoothkernel/
 |-- recipes/
 |   |-- build-kernel.sh          Kernel build recipe
 |   |-- build-zfs.sh             OpenZFS package recipe
-|   `-- stamp-version.sh         Version helper
+|   `-- build-number.sh          Build number for package versions
 |-- templates/
 |   |-- dkms.conf.in             DKMS package template
 |   |-- debian-postinst.in       DKMS register/build/install hook

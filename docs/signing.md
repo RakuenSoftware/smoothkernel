@@ -2,7 +2,9 @@
 
 Shipped Smooth* systems support Secure Boot without giving up DKMS-delivered modules such as ZFS, `smoothfs`, or NVIDIA.
 
-This document is the production signing contract. The repository does not store private keys. A local `make kernel` build is valid for bring-up, but an artifact is not promotable to users until the release path has satisfied the signing and verification gates below.
+This document is the signing design. The repository does not store private keys.
+
+Signing is optional. It is what lets a kernel boot under Secure Boot; it is not what establishes where a package came from. That is the job of the build-provenance attestations every release carries (see [CI_RELEASES.md](CI_RELEASES.md)), which anyone can verify. A release built without signing material is published to the apt repository like any other. It is marked unsigned and runs only with Secure Boot off. When signing material is provisioned, the gates below apply and a failure blocks the release.
 
 The design uses two trust domains because the module sources come from two places:
 
@@ -154,9 +156,9 @@ a live option if we want in-kernel parity rather than a command-line policy.
 
 ## Build and release flow
 
-Developer builds are allowed to use local throwaway keys for bring-up, but only CI-produced release artifacts that satisfy this signing contract are promotable to the apt repo.
+Only CI-produced release artifacts are published to the apt repo; local builds, with or without throwaway keys, are for bring-up.
 
-Release build flow:
+Release build flow, once signing material is provisioned:
 
 1. CI fetches signing material from KMS / HSM-backed secret storage
 2. Kernel build signs packaged modules with the Rakuen release key
@@ -166,7 +168,7 @@ Release build flow:
 ### Repository secrets
 
 `.github/workflows/release.yml` reads three secrets. Provision them on the
-repository (or its environment) before expecting a promotable artifact:
+repository (or its environment) to build signed kernels:
 
 | Secret | Contents |
 |---|---|
@@ -198,12 +200,12 @@ Fork pull requests do not receive secrets, and a repository that has not yet
 provisioned them still needs to build. In that case the workflow:
 
 - emits a warning that the build is unsigned,
-- drops `UNSIGNED-NOT-PROMOTABLE.txt` into the artifact directory,
+- drops `UNSIGNED.txt` into the artifact directory and the release,
 - and skips the signing verification gates (there is nothing to verify).
 
-Those artifacts are valid for development and functional testing, and must not
-be published to the apt repo. When secrets *are* present, the verification gates
-run and a failure blocks the release rather than warning about it.
+Those packages are published to the apt repo like signed ones; they run only
+with Secure Boot off. When secrets *are* present, the verification gates run and
+a failure blocks the release rather than warning about it.
 
 ### Local builds
 

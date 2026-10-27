@@ -13,6 +13,12 @@
 #   BUILD_THREADS     -j N for make (default $(nproc))
 #   ZFS_PATCHSET      patch lane applied to the extracted source before
 #                     autogen, e.g. zfs-$ZFS_VERSION. Unset means no patches.
+#   BUILD_NUMBER      default recipes/build-number.sh (commit count of HEAD)
+#
+# The build number is the package revision (zfs_2.4.4-<N>), as for the
+# kernel, so every build's packages have their own version and a patch
+# change reaches systems as an upgrade. The DKMS module version stays
+# ZFS_VERSION: OpenZFS takes it from META's Version, not its Release.
 
 set -euo pipefail
 
@@ -24,6 +30,7 @@ OUT_DIR="${OUT_DIR:-$(pwd)/out}"
 BUILD_THREADS="${BUILD_THREADS:-$(nproc)}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BUILD_NUMBER="$("$ROOT/recipes/build-number.sh")"
 BUILD_DIR="$ROOT/build/zfs-$ZFS_VERSION-$DEB_ARCH"
 TARBALL="zfs-$ZFS_VERSION.tar.gz"
 URL="https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/$TARBALL"
@@ -87,6 +94,16 @@ if [[ -n "$ZFS_PATCHSET" && "$FRESH_EXTRACT" -eq 1 ]]; then
 fi
 
 echo "==> build arch: DEB_ARCH=$DEB_ARCH"
+
+# configure reads the package revision from META. A reused tree configured
+# for another build number has to be configured again.
+# .nogitrelease: otherwise configure asks git (this repo, as the tree sits
+# inside it) for a release before falling back to META.
+touch .nogitrelease
+if ! grep -qx "Release:[[:space:]]*${BUILD_NUMBER}" META; then
+    sed -i "s/^Release:.*/Release:       ${BUILD_NUMBER}/" META
+    rm -f Makefile
+fi
 
 if [[ ! -f Makefile ]]; then
     echo "==> autogen + configure"

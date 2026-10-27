@@ -64,7 +64,7 @@ Product-level contract described here:
 
 - The Smooth* apt repository consumes and promotes release artifacts.
 - Flavor repositories own their daemons, UIs, meta packages, and smoke tests.
-- Signing-capable CI owns release-key custody and promotable signed artifacts.
+- CI builds and attests every released package; signing, when its secrets are provisioned, also happens there.
 - Installers own first-boot setup and flavor-specific source enablement.
 
 If a doc makes a production claim that is not implemented yet, prefer language

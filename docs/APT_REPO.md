@@ -2,12 +2,13 @@
 
 Design for the Smooth* apt repository: suite layout, component choices, pinning, promotion, and the minimum repository mechanics the rest of this doc set assumes.
 
-The sibling `apt-repo` repo may carry the implementation details, but the cross-repo contract is:
+The repository is [`smoothapt`](https://github.com/RakuenSoftware/smoothapt), which carries the implementation details. The cross-repo contract is:
 
-- `pool/` and `dists/` are committed artifacts, not generated on the web host
-- `scripts/add-package.sh` adds packages, refreshes indices, and updates `Release` metadata
-- `Origin: RakuenSoftware` is set in each signed `Release` file
-- CI signs `Release` / `InRelease`, publishes `public-key.asc`, and deploys the static tree
+- It runs on the VPS and ingests every Smooth* project from that project's GitHub releases: SmoothKernel into `common`, each product into its own suite. Builds happen only in each project's GitHub pipeline; `smoothapt` never builds, re-signs or re-versions a package.
+- Before ingesting a package it verifies the package's build-provenance attestation against the project's repository, so every package in the repository is traceable to a public pipeline run (SmoothKernel: [CI_RELEASES.md](CI_RELEASES.md#provenance)).
+- The archive (`pool/`, `dists/`) lives on the server, not in git.
+- `Origin: RakuenSoftware` is set in each signed `Release` file, and `public-key.asc` is published alongside.
+- The `smoothrouter` suite, and its packages, are served only to clients with a per-user credential that can be revoked.
 
 ## Suite layout
 
@@ -92,7 +93,7 @@ This keeps our version strictly greater than Debian's (`25.2.3` alone or `25.2.3
 
 ## Promotion
 
-v1 (now): one suite per flavor, `main` component, direct publish. Matches the existing `apt-repo` shape.
+v1 (now): one suite per flavor, `main` component, direct publish.
 
 v2 (when rebase pain justifies it): introduce a `testing` suite tree mirrored from `common`/`smoothnas`/etc. CI builds land in `testing-<suite>`; soak for N days; a promotion script copies approved packages across. Keeps the producer-side simple while letting us de-risk kernel bumps.
 
@@ -100,21 +101,11 @@ The promotion machinery is non-trivial (needs to preserve signatures or re-sign)
 
 ## Signing and key custody
 
-Already addressed in `apt-repo/README.md` (Section: One-time setup). Single signing key, stored as GitHub repo secret `APT_SIGNING_KEY`. Key-id as `APT_SIGNING_KEY_ID`. Public half served as `public-key.asc` from the repo root; consumers dearmor into `/etc/apt/keyrings/smooth-archive-keyring.gpg`.
-
-Not changing this — the existing shape is fine.
+Single repository signing key; custody is documented in `smoothapt`. Public half served as `public-key.asc`; consumers dearmor into `/etc/apt/keyrings/smooth-archive-keyring.gpg`.
 
 ## Hosting
 
-GitHub Pages (current). Mirrorable to any static HTTP server — `dists/` is committed, so a `git clone` into `/var/www/apt-repo` is a complete mirror. No server-side build needed.
-
-Production will eventually want:
-
-- A stable custom domain (`apt.rakuensoftware.com`)
-- CDN in front (Cloudflare works with GitHub Pages)
-- HTTPS enforced (GitHub Pages provides this)
-
-Out of scope until we ship to real users.
+The Rakuen VPS, as a static tree behind nginx with HTTPS. `smoothapt` documents the setup.
 
 ## Out-of-tree modules and DKMS
 

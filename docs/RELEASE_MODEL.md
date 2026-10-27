@@ -57,9 +57,9 @@ Kernel is the fastest-moving; expect a kernel PR every 1–2 weeks. Everything e
 
 ### v1 (now)
 
-Single `main` component per suite. The release path builds amd64 and arm64 package artifacts, satisfies the required signing gates, commits them to `apt-repo`, GitHub Pages publishes, and users receive them on the next `apt upgrade`. No staging.
+Single `main` component per suite. The release path builds amd64 and arm64 package artifacts and attests them, `smoothapt` verifies the attestations and ingests them, and users receive them on the next `apt upgrade`. No staging.
 
-Right posture for where we are — small user base, direct deployment path, rollback is "revert the commit in apt-repo."
+Right posture for where we are — small user base, direct deployment path.
 
 ### v2 (when pain justifies)
 
@@ -77,12 +77,12 @@ Not preemptive. Operational pain is the forcing function.
 
 Today, the soak strategy is:
 
-1. Produce a candidate build through the signing-capable release path.
+1. Produce a candidate build through the CI release path.
 2. Install on the minimum validation matrix: one NAS target, one router target, one HTPC target, one desktop target.
 3. Boot, run flavor-specific smoke tests (mount a ZFS pool for NAS; pass traffic for router; run Kodi video decode for HTPC; boot into Plasma and launch Steam for desktop).
-4. If clean, commit the .deb to apt-repo.
+4. If clean, let `smoothapt` ingest the release.
 
-Rollback: git revert in apt-repo, re-run publish. Users on stale versions are unaffected; users who upgraded get the old version back on next `apt upgrade` if we leave it — otherwise we need to ship a `.deb` with an epoch bump to force a downgrade, which is painful. Prefer "never publish known-broken" over "rollback fast."
+Rollback: ship a fixed build. Every build is a new kernel installed alongside the previous one, so a box that took a bad kernel still has its last good one to boot. Removing a build from the repository does not downgrade boxes that already took it. Prefer "never publish known-broken" over "rollback fast."
 
 Per-flavor smoke test checklists will live in each flavor's repo (`SmoothNAS/docs/OPERATIONS.md` is the model).
 
@@ -120,6 +120,6 @@ Hard deprecations (licensing, security) skip the grace cycle.
 
 ## Open questions
 
-- **Release notes discipline.** Where do they live? Markdown files in the apt-repo itself, or per-flavor in each product repo? Leaning per-flavor for product-specific notes, cross-cutting kernel/mesa notes in `smoothkernel`.
+- **Release notes discipline.** Where do they live? Markdown files in `smoothapt` itself, or per-flavor in each product repo? Leaning per-flavor for product-specific notes, cross-cutting kernel/mesa notes in `smoothkernel`.
 - **Hotfix kernels.** A security issue lands mid-cycle — do we rebase out-of-band or wait for the next CachyOS series? Policy: rebase out-of-band, only with CachyOS's patch series (not self-maintained).
 - **Dependency freeze for flavor suites.** Currently we assume trixie-stable deps for daemon packages (tierd etc.). When trixie point releases break source-incompatibility (rare but happens), rebuild vs. pin Debian point release. Defer until it bites.
