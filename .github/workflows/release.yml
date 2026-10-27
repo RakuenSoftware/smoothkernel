@@ -266,6 +266,14 @@ jobs:
           fi
           (cd "dist/${{ matrix.deb_arch }}" && sha256sum *.deb > "SHA256SUMS.${{ matrix.deb_arch }}")
           ls -lh "dist/${{ matrix.deb_arch }}/"
+          # Publish each package's identity as a run annotation: annotations
+          # are readable without GitHub auth, unlike logs and artifacts, so
+          # anyone can check names, versions and dependencies of a build.
+          summary=""
+          for deb in "dist/${{ matrix.deb_arch }}"/*.deb; do
+            summary+="$(dpkg-deb -W --showformat='${Package} ${Version}  Depends: ${Depends}  Provides: ${Provides}' "$deb")%0A"
+          done
+          echo "::notice title=packages ${{ matrix.deb_arch }}::${summary}"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
