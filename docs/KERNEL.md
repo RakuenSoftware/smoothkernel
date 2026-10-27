@@ -144,7 +144,7 @@ Major version bumps (e.g. 6.x → 7.0) follow the conservative rule from [`bumpi
 
 Every flavor that needs out-of-tree kernel code consumes the versioned SmoothKernel headers package, normally via a stable apt metapackage, and DKMS builds against `/lib/modules/$(uname -r)/build`. Current consumers:
 
-- `zfs-dkms` — SmoothNAS. OpenZFS tracks kernel compatibility per release; see [`bumping-kernel.md`](bumping-kernel.md) for the version-pairing rule.
+- `openzfs-zfs-dkms` — SmoothNAS. OpenZFS tracks kernel compatibility per release; see [`bumping-kernel.md`](bumping-kernel.md) for the version-pairing rule.
 - `smoothfs` — SmoothNAS-specific filesystem module. Uses the `compat.h` pattern (see [`kernel-config.md`](kernel-config.md)).
 - NVIDIA proprietary — optional on HTPC/desktop. Ships via Debian's `nvidia-driver-*` packages (mirrored or pulled directly) which are DKMS-compatible.
 

@@ -109,11 +109,11 @@ The Rakuen VPS, as a static tree behind nginx with HTTPS. `smoothapt` documents 
 
 ## Out-of-tree modules and DKMS
 
-DKMS modules (`zfs-dkms`, `smoothfs`-via-DKMS, NVIDIA if we mirror it) build against the installed SmoothKernel headers on install. The versioned package name is `linux-headers-<kernel-version>-smoothkernel`; the apt repo may also provide a stable metapackage such as `linux-headers-smoothkernel`. DKMS consumers live in `common` only when multiple flavors can pull them; flavor meta-packages declare Depends on only the modules they actually need.
+DKMS modules (`openzfs-zfs-dkms`, `smoothfs`-via-DKMS, NVIDIA if we mirror it) build against the installed SmoothKernel headers on install. The versioned package name is `linux-headers-<kernel-version>-smoothkernel`; the apt repo may also provide a stable metapackage such as `linux-headers-smoothkernel`. DKMS consumers live in `common` only when multiple flavors can pull them; flavor meta-packages declare Depends on only the modules they actually need.
 
 Every flavor meta-package also depends on `smooth-secureboot`, which owns the per-host Secure Boot / MOK bootstrap and DKMS-signing hooks for the shared-kernel model.
 
-- `smoothnas` depends on `zfs-dkms`, `smoothfs`
+- `smoothnas` depends on `openzfs-zfs-dkms`, `smoothfs`
 - `smoothrouter` depends on neither
 - `smoothhtpc`, `smoothdesktop` may depend on NVIDIA driver packages conditionally (handled via Recommends + install-time detection)
 

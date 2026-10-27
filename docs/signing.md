@@ -163,7 +163,7 @@ Release build flow, once signing material is provisioned:
 1. CI fetches signing material from KMS / HSM-backed secret storage
 2. Kernel build signs packaged modules with the Rakuen release key
 3. Resulting `.deb`s are published to the apt repo
-4. Test boxes enrolled with `smooth-secureboot` verify that DKMS consumers (`zfs-dkms`, `smoothfs`, optional NVIDIA) rebuild and load successfully
+4. Test boxes enrolled with `smooth-secureboot` verify that DKMS consumers (`openzfs-zfs-dkms`, `smoothfs`, optional NVIDIA) rebuild and load successfully
 
 ### Repository secrets
 

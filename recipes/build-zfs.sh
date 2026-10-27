@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# build-zfs.sh — fetch an OpenZFS source release and produce zfs-dkms
-# + userspace .deb files. DKMS source package is kernel-version-
-# independent; it rebuilds against whatever kernel headers are
-# installed on the target appliance via the standard DKMS hook.
+# build-zfs.sh — fetch an OpenZFS source release and produce
+# openzfs-zfs-dkms + userspace .deb files with OpenZFS' own Debian
+# packaging (contrib/debian), so every package declares its real
+# dependencies. The DKMS source package is kernel-version-independent;
+# it rebuilds against whatever kernel headers are installed on the
+# target appliance via the standard DKMS hook.
 #
 # Required env:
 #   ZFS_VERSION       e.g. 2.4.1
@@ -15,10 +17,10 @@
 #                     autogen, e.g. zfs-$ZFS_VERSION. Unset means no patches.
 #   BUILD_NUMBER      default recipes/build-number.sh (commit count of HEAD)
 #
-# The build number is the package revision (zfs_2.4.4-<N>), as for the
-# kernel, so every build's packages have their own version and a patch
-# change reaches systems as an upgrade. The DKMS module version stays
-# ZFS_VERSION: OpenZFS takes it from META's Version, not its Release.
+# The build number is the package revision (openzfs-zfsutils_2.4.4-<N>),
+# as for the kernel, so every build's packages have their own version and
+# a patch change reaches systems as an upgrade. The DKMS module version
+# stays ZFS_VERSION (the upstream part of the package version).
 
 set -euo pipefail
 
@@ -34,31 +36,6 @@ BUILD_NUMBER="$("$ROOT/recipes/build-number.sh")"
 BUILD_DIR="$ROOT/build/zfs-$ZFS_VERSION-$DEB_ARCH"
 TARBALL="zfs-$ZFS_VERSION.tar.gz"
 URL="https://github.com/openzfs/zfs/releases/download/zfs-$ZFS_VERSION/$TARBALL"
-
-# alien does not translate these RPM requirements into Debian dependencies.
-# The ZFS initramfs hook refuses to run without a BusyBox implementation,
-# including on otherwise valid minimal Debian/cloud installations.
-add_initramfs_dependencies() {
-    local deb="$1" tmp control depends
-    tmp="$(mktemp -d)"
-    dpkg-deb -R "$deb" "$tmp" >/dev/null
-    control="$tmp/DEBIAN/control"
-    depends="$(sed -n 's/^Depends: //p' "$control")"
-    if ! grep -Eq '(^|[,|])[[:space:]]*initramfs-tools([[:space:],(|]|$)' <<< "$depends"; then
-        depends="${depends:+$depends, }initramfs-tools"
-    fi
-    if ! grep -Eq '(^|[,|])[[:space:]]*busybox(-static)?([[:space:],(|]|$)' <<< "$depends"; then
-        depends="${depends:+$depends, }busybox | busybox-static"
-    fi
-    if grep -q '^Depends:' "$control"; then
-        sed -i "s/^Depends:.*/Depends: $depends/" "$control"
-    else
-        sed -i "/^Version: /a Depends: $depends" "$control"
-    fi
-    dpkg-deb -b "$tmp" "${deb}.patched" >/dev/null
-    mv "${deb}.patched" "$deb"
-    rm -rf "$tmp"
-}
 
 mkdir -p "$BUILD_DIR" "$OUT_DIR"
 cd "$BUILD_DIR"
@@ -111,32 +88,35 @@ if [[ ! -f Makefile ]]; then
     ./configure --with-config=user >/dev/null
 fi
 
+# The Debian version comes from the changelog configure generates, which
+# upstream fixes at <version>-1.
+pkg_version="${ZFS_VERSION}-${BUILD_NUMBER}"
+sed -i -E "1s/^(openzfs-linux \([^-)]+)-[^)]*\)/\1-${BUILD_NUMBER})/" contrib/debian/changelog
+got="$(dpkg-parsechangelog -l contrib/debian/changelog -S Version)"
+[[ "$got" == "$pkg_version" ]] || {
+    echo "ERROR: contrib/debian/changelog has version $got, expected $pkg_version" >&2; exit 1;
+}
+
 echo "==> building (-j${BUILD_THREADS})"
 date
-rpmbuild_cmd="rpmbuild --define '_binary_payload w9.gzdio'"
-
-# OpenZFS' alien-based deb targets share the source tree and fakeroot/rpm
-# tooling; run the target groups sequentially while preserving per-target
-# parallelism.
-make -j"$BUILD_THREADS" RPMBUILD="$rpmbuild_cmd" deb-utils || {
-    echo "ERROR: zfs userspace package build failed"; exit 1;
+# native-deb-utils copies contrib/debian to debian/ only if debian/ does not
+# exist, and dpkg-buildpackage leaves the packages in the parent directory:
+# clear both so a rerun cannot pick up a previous build.
+rm -rf debian ../*.deb
+# Userspace + DKMS source; not native-deb-kmod, which would build modules
+# for the build host's kernel. dpkg-buildpackage checks Build-Depends first
+# and names whatever is missing.
+DEB_BUILD_OPTIONS="nocheck parallel=${BUILD_THREADS}" make native-deb-utils || {
+    echo "ERROR: zfs package build failed"; exit 1;
 }
-make -j"$BUILD_THREADS" RPMBUILD="$rpmbuild_cmd" deb-dkms || {
-    echo "ERROR: zfs dkms package build failed"; exit 1;
-}
-if ! compgen -G "*.deb" >/dev/null; then
-    echo "ERROR: zfs build failed"; exit 1;
-fi
 date
 
 echo "==> collecting .debs into $OUT_DIR"
 shopt -s nullglob
 moved=()
-for f in *.deb; do
-    if [[ "$f" == zfs-initramfs_* ]]; then
-        add_initramfs_dependencies "$f"
-    fi
+for f in ../*.deb; do
     cp -v "$f" "$OUT_DIR/"
     moved+=("$f")
 done
+[[ ${#moved[@]} -gt 0 ]] || { echo "ERROR: zfs build produced no .debs"; exit 1; }
 echo "==> done. Built ${#moved[@]} .debs in $OUT_DIR"

@@ -13,7 +13,7 @@ NAS appliance flavor. This doc is the Smooth* cross-repo contract for SmoothNAS:
 | `smoothfs` | `SmoothNAS` | Out-of-tree kernel module (DKMS) |
 | `smoothfs-utils` | `SmoothNAS` | Userspace tools for smoothfs |
 
-Shared from `common`: the versioned SmoothKernel image and headers packages (optionally via stable metapackages), `linux-firmware-smooth`, `smooth-base`, `zfs-dkms` (if we host it; otherwise pulled from Debian), `smoothgui-assets` (optional — cached smoothgui build for offline installer).
+Shared from `common`: the versioned SmoothKernel image and headers packages (optionally via stable metapackages), `linux-firmware-smooth`, `smooth-base`, `openzfs-zfs-dkms` and `openzfs-zfsutils` (built by SmoothKernel), `smoothgui-assets` (optional — cached smoothgui build for offline installer).
 
 ## Meta-package dependencies
 
@@ -31,8 +31,8 @@ Depends:
  tierd-ui,
  smoothfs,
  smoothfs-utils,
- zfs-dkms,
- zfsutils-linux,
+ openzfs-zfs-dkms,
+ openzfs-zfsutils,
  samba,
  nfs-kernel-server,
  tgt,
@@ -143,14 +143,9 @@ Everything here is runtime, kernel-neutral, and independently installable — so
 
 ## ZFS posture
 
-`zfs-dkms` from DKMS, built against the installed SmoothKernel headers. OpenZFS release pairing follows the rule in [`bumping-kernel.md`](bumping-kernel.md): kernel version <= the OpenZFS release's `Linux-Maximum`.
+`openzfs-zfs-dkms` from DKMS, built against the installed SmoothKernel headers. OpenZFS release pairing follows the rule in [`bumping-kernel.md`](bumping-kernel.md): kernel version <= the OpenZFS release's `Linux-Maximum`.
 
-We can either:
-
-- (a) Mirror `zfs-dkms` and `zfsutils-linux` into `common` (rebuilt when OpenZFS releases).
-- (b) Pull from Debian. Lags upstream by months, frustrating when a kernel bump outruns Debian's ZFS.
-
-Leaning (a) because kernel cadence is the bottleneck and Debian's ZFS will chronically lag. Implementation: extend `smoothkernel`'s existing `build-zfs.sh` recipe to produce signed Debian packages for the `common` suite.
+OpenZFS comes from SmoothKernel, not Debian: Debian's ZFS lags upstream by months, and kernel cadence is the bottleneck. `recipes/build-zfs.sh` builds OpenZFS's own Debian packaging (`openzfs-*`) with every kernel build, and `smoothapt` publishes it in the `common` suite.
 
 ## Installer considerations
 
@@ -168,6 +163,5 @@ Other Smooth* products will likely adopt the same repo-local aimee pattern as th
 
 ## Open questions
 
-- **zfs-dkms custody.** Mirror (a) vs Debian (b) — decision pending; lean (a) as above.
 - **Installer ZFS modules.** See [`INSTALLERS.md`](INSTALLERS.md).
 - **Appliance-mode hardening.** Should the `.deb` install disable password login by default and force SSH-key-only? Right posture for an appliance, but increases first-boot friction. Decision deferred.

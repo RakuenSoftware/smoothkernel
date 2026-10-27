@@ -46,7 +46,7 @@ with a one-line carry patch instead of waiting.
 
 **Do not ship `--enable-linux-experimental` as the fix.** It works for a local
 build but cannot reach the DKMS path — `scripts/dkms.mkconf` hardcodes the
-configure arguments used when `zfs-dkms` rebuilds on the target, so the flag
+configure arguments used when `openzfs-zfs-dkms` rebuilds on the target, so the flag
 never reaches an appliance and every on-target rebuild would fail. Carry a
 `patches/zfs-<version>/` META patch instead, so the raised cap travels with the
 packaged source. See [`PATCHES.md`](PATCHES.md) and `patches/zfs-2.4.3/README.md`.
@@ -123,7 +123,7 @@ find out -maxdepth 2 -name '*.deb'
 ```
 
 Run `make check-zfs-dkms DEB_ARCH=<arch>` on each native builder after both
-package builds. It extracts the generated zfs-dkms package and invokes its
+package builds. It extracts the generated openzfs-zfs-dkms package and invokes its
 normal configure/build hook against the complete matching kernel tree, checks
 `zfs.ko`/`spl.ko` vermagic, and refuses an experimental-cap bypass. CI runs this
 before uploading or publishing packages. It does not install or load modules.

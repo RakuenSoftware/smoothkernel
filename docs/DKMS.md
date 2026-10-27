@@ -6,7 +6,7 @@ not here.
 
 Current or expected consumers:
 
-- OpenZFS through `zfs-dkms`.
+- OpenZFS through `openzfs-zfs-dkms`.
 - SmoothNAS `smoothfs`.
 - Optional NVIDIA modules from Debian's `nvidia-driver-*` packages.
 

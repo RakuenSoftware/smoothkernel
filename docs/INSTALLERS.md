@@ -83,7 +83,7 @@ Until this lands, the existing `SmoothNAS/iso/` continues to work and other flav
 
 ### SmoothNAS
 
-- Optional ZFS-on-root. Needs the installer to load ZFS modules during install (they come from `zfs-dkms` built against the installer kernel, or precompiled for the installer environment — decision deferred).
+- Optional ZFS-on-root. Needs the installer to load ZFS modules during install (they come from `openzfs-zfs-dkms` built against the installer kernel, or precompiled for the installer environment — decision deferred).
 - Multi-disk mgmt during install is out of scope — non-OS disks stay untouched, managed from the web UI post-install.
 - Default user setup: one admin user, web UI login is separate credential.
 
