@@ -176,16 +176,70 @@ add_headers_virtual_provides() {
     rm -rf "$tmp"
 }
 
+# Lay out, under <root>, the boot-newest script, the /etc/kernel hooks that run
+# it (before GRUB's zz-update-grub) and the maintainer scripts that apply it
+# when the package itself is installed or removed.
+add_boot_newest_hooks() {
+    local root="$1" dir
+    install -d "$root/usr/share/smoothkernel"
+    sed "s/@LOCALVERSION@/${LOCALVERSION}/g" "$ROOT/templates/boot-newest-kernel.in" \
+        > "$root/usr/share/smoothkernel/boot-newest"
+    chmod 755 "$root/usr/share/smoothkernel/boot-newest"
+    sh -n "$root/usr/share/smoothkernel/boot-newest"
+    for dir in postinst.d postrm.d; do
+        install -d "$root/etc/kernel/$dir"
+        cat > "$root/etc/kernel/$dir/zy-smoothkernel-boot-newest" <<'HOOK'
+#!/bin/sh
+# linux-image-smoothkernel: keep GRUB on the newest installed SmoothKernel.
+# zz-update-grub runs after this and writes it into grub.cfg.
+[ -x /usr/share/smoothkernel/boot-newest ] || exit 0
+exec /usr/share/smoothkernel/boot-newest
+HOOK
+        chmod 755 "$root/etc/kernel/$dir/zy-smoothkernel-boot-newest"
+        echo "/etc/kernel/$dir/zy-smoothkernel-boot-newest" >> "$root/DEBIAN/conffiles"
+    done
+    # The kernel this package depends on is configured before the package, so
+    # its hooks ran without this one; apply it now, as zz-update-grub would.
+    cat > "$root/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -e
+if [ "$1" = configure ]; then
+	/usr/share/smoothkernel/boot-newest
+	if command -v update-grub >/dev/null 2>&1 && [ -e /boot/grub/grub.cfg ]; then
+		update-grub
+	fi
+fi
+POSTINST
+    cat > "$root/DEBIAN/postrm" <<'POSTRM'
+#!/bin/sh
+set -e
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+	rm -f /etc/default/grub.d/50-smoothkernel.cfg
+	if command -v update-grub >/dev/null 2>&1 && [ -e /boot/grub/grub.cfg ]; then
+		update-grub
+	fi
+fi
+POSTRM
+    chmod 755 "$root/DEBIAN/postinst" "$root/DEBIAN/postrm"
+}
+
 # Build a metapackage <name>_<PKG_VERSION>_<arch>.deb that depends on exactly
 # this build's <target>. Systems install the metapackage; each new build's
 # metapackage pulls in that build's kernel through an ordinary apt upgrade.
+#
+# With "boot-newest" as a fourth argument it also carries the kernel hooks that
+# keep GRUB booting the newest installed SmoothKernel (see
+# templates/boot-newest-kernel.in).
 build_metapackage() {
-    local name="$1" target="$2" description="$3"
+    local name="$1" target="$2" description="$3" extra="${4:-}"
     local tmp deb maintainer
     # Same maintainer as the packages bindeb-pkg built in this run.
     maintainer="$(dpkg-deb -f "$OUT_DIR/linux-image-${KERNEL_RELEASE}_${PKG_VERSION}_${DEB_ARCH}.deb" Maintainer)"
     tmp="$(mktemp -d)"
     mkdir -p "$tmp/DEBIAN"
+    if [[ "$extra" == boot-newest ]]; then
+        add_boot_newest_hooks "$tmp"
+    fi
     cat > "$tmp/DEBIAN/control" <<CONTROL
 Package: ${name}
 Version: ${PKG_VERSION}
@@ -641,7 +695,7 @@ fi
 
 echo "==> building metapackages"
 build_metapackage linux-image-smoothkernel "linux-image-${KERNEL_RELEASE}" \
-    "SmoothKernel image (latest build)"
+    "SmoothKernel image (latest build)" boot-newest
 build_metapackage linux-headers-smoothkernel "linux-headers-${KERNEL_RELEASE}" \
     "SmoothKernel headers (latest build)"
 echo "==> done. Built ${#moved[@]} .debs + 2 metapackages for ${KERNEL_RELEASE} in $OUT_DIR"
