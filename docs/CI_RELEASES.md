@@ -44,6 +44,13 @@ every new build. Old kernels are removed by `apt autoremove`, which keeps the
 running and newest ones. The versioned headers package also `Provides:
 linux-headers`, for DKMS packages that depend on the generic name.
 
+`linux-image-smoothkernel` also keeps GRUB booting the newest installed
+SmoothKernel, by package version: its kernel hooks set `GRUB_TOP_LEVEL` in
+`/etc/default/grub.d/50-smoothkernel.cfg` whenever a kernel is installed or
+removed. GRUB's own ordering compares release strings and would rank an older
+`7.2.10-smoothkernel` above `7.2.10-74-smoothkernel`. To boot another kernel,
+set `GRUB_TOP_LEVEL` or `GRUB_DEFAULT` in `/etc/default/grub`; either wins.
+
 The DKMS module version of OpenZFS stays the upstream version (`2.4.4`); only
 the package revision carries the build number.
 

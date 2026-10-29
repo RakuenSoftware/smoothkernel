@@ -1,0 +1,44 @@
+#!/bin/sh
+# Boot the newest installed SmoothKernel. Shipped by linux-image-smoothkernel
+# and run from its kernel hooks on every kernel install and removal.
+#
+# GRUB ranks kernels by their release string, which puts an older build first
+# when the names differ in shape: the installer's 7.2.10@LOCALVERSION@ sorts
+# above the archive's 7.2.10-74@LOCALVERSION@. This picks the kernel with the
+# highest package version instead and has GRUB put it first, through
+# GRUB_TOP_LEVEL.
+#
+# To boot another kernel, set GRUB_TOP_LEVEL or GRUB_DEFAULT yourself in
+# /etc/default/grub; either takes precedence over this.
+
+set -e
+
+cfg=/etc/default/grub.d/50-smoothkernel.cfg
+
+newest=""
+newest_version=""
+for entry in $(dpkg-query -W -f '${Package}=${Version}\n' 'linux-image-*@LOCALVERSION@' 2>/dev/null); do
+	pkg=${entry%%=*}
+	version=${entry#*=}
+	release=${pkg#linux-image-}
+	# A kernel being removed is still known to dpkg; one being installed is
+	# not configured yet. Its image in /boot is what counts.
+	[ -e "/boot/vmlinuz-${release}" ] || continue
+	if [ -z "$newest" ] || dpkg --compare-versions "$version" gt "$newest_version"; then
+		newest=$release
+		newest_version=$version
+	fi
+done
+
+if [ -z "$newest" ]; then
+	rm -f "$cfg"
+	exit 0
+fi
+
+mkdir -p "${cfg%/*}"
+cat > "${cfg}.new" << EOF
+# Written by linux-image-smoothkernel: boot the newest installed SmoothKernel.
+# To boot another kernel, set GRUB_TOP_LEVEL or GRUB_DEFAULT in /etc/default/grub.
+GRUB_TOP_LEVEL="\${GRUB_TOP_LEVEL:-/boot/vmlinuz-${newest}}"
+EOF
+mv "${cfg}.new" "$cfg"
