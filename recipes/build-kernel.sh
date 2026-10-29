@@ -116,15 +116,15 @@ PATCH_ROOT="$ROOT/patches"
 VERSIONED_CONFIG_DIR="$ROOT/configs/$KERNEL_VERSION"
 VERSIONED_CONFIG="$VERSIONED_CONFIG_DIR/smooth-$DEB_ARCH.config"
 
-# The checked-in configs keep the plain LOCALVERSION; only a package build
-# carries the build number.
-if [[ "$MODE" == "update-config" ]]; then
-    CONFIG_LOCALVERSION="$LOCALVERSION"
-else
+# The config keeps the plain LOCALVERSION. A package build adds the build
+# number through a localversion file in the source tree, which the kernel puts
+# ahead of CONFIG_LOCALVERSION (scripts/setlocalversion). Kept out of the
+# config, it stays out of autoconf.h, which every file includes, so a new
+# build number does not change what is compiled and ccache can reuse it.
+if [[ "$MODE" != "update-config" ]]; then
     BUILD_NUMBER="$("$ROOT/recipes/build-number.sh")"
-    CONFIG_LOCALVERSION="-${BUILD_NUMBER}${LOCALVERSION}"
-    KERNEL_RELEASE="${KERNEL_VERSION}${CONFIG_LOCALVERSION}"   # e.g. 7.2.10-68-smoothkernel
-    PKG_VERSION="${KERNEL_VERSION}-${BUILD_NUMBER}"             # e.g. 7.2.10-68
+    KERNEL_RELEASE="${KERNEL_VERSION}-${BUILD_NUMBER}${LOCALVERSION}"   # e.g. 7.2.10-68-smoothkernel
+    PKG_VERSION="${KERNEL_VERSION}-${BUILD_NUMBER}"                     # e.g. 7.2.10-68
 fi
 
 kernel_make_args=(ARCH="$KERNEL_ARCH" KBUILD_DEBARCH="$DEB_ARCH")
@@ -583,7 +583,7 @@ apply_smoothkernel_profile() {
         scripts/config --module ACPI_CALL
     fi
 
-    scripts/config --set-str LOCALVERSION "$CONFIG_LOCALVERSION"
+    scripts/config --set-str LOCALVERSION "$LOCALVERSION"
     kernel_make olddefconfig </dev/null >/dev/null
 }
 
@@ -645,6 +645,10 @@ if [[ "$MODE" == "update-config" ]]; then
     echo "==> wrote $VERSIONED_CONFIG"
     exit 0
 fi
+
+# The build number, ahead of CONFIG_LOCALVERSION (see KERNEL_RELEASE above).
+# The .deb names checked below confirm the resulting release.
+printf '%s\n' "-${BUILD_NUMBER}" > localversion-00-build
 
 echo "==> building (-j${BUILD_THREADS})"
 date
