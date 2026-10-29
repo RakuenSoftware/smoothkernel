@@ -60,15 +60,34 @@ The workflow:
 
 1. Checks out the repository.
 2. Installs build dependencies.
-3. Copies `examples/smooth.env` to `build.env`.
-4. Runs `make kernel` for amd64 on `ubuntu-24.04` and arm64 on `ubuntu-24.04-arm`.
-5. Runs `make zfs` for each architecture.
-6. Uploads per-architecture package artifacts.
-7. Merges amd64 and arm64 packages into `dist/`, skipping duplicate `_all.deb` assets.
-8. Writes `dist/SHA256SUMS`.
-9. Writes `dist/manifest.json` with artifact architectures and sha256 values.
-10. Attests the build provenance of every `.deb` (see below).
-11. Publishes a GitHub Release with `.deb`, checksum, and manifest assets.
+3. Restores the compiler cache (see below).
+4. Copies `examples/smooth.env` to `build.env`.
+5. Runs `make kernel` for amd64 on `ubuntu-24.04` and arm64 on `ubuntu-24.04-arm`.
+6. Runs `make zfs` for each architecture.
+7. Saves the compiler cache and uploads per-architecture package artifacts.
+8. Merges amd64 and arm64 packages into `dist/`, skipping duplicate `_all.deb` assets.
+9. Writes `dist/SHA256SUMS`.
+10. Writes `dist/manifest.json` with artifact architectures and sha256 values.
+11. Attests the build provenance of every `.deb` (see below).
+12. Publishes a GitHub Release with `.deb`, checksum, and manifest assets.
+
+## Compiler Cache
+
+Builds reuse compiled objects through ccache, stored in this repository's
+GitHub Actions cache per architecture and kernel version. A commit that leaves
+most of the kernel alone, such as a packaging change, recompiles only what it
+changed; a kernel version bump starts mostly cold. Each build job prints its
+hit rate in the "Compiler cache statistics" step.
+
+The cache only holds what this workflow compiled in earlier runs, on GitHub's
+runners. Caches are scoped by branch: `main` restores only caches saved by
+`main`, so a pull request cannot put anything into a release build.
+
+For the cache to hit, nothing that changes per build may reach the kernel
+config, which every file includes. The build number is therefore not in
+`CONFIG_LOCALVERSION`: it is a `localversion-00-build` file in the source
+tree, which the kernel places ahead of `CONFIG_LOCALVERSION` in the release
+string. Signing material is likewise written to a fixed path.
 
 ## Provenance
 
