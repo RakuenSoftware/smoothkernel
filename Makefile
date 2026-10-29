@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 # Top-level orchestration. Reads build.env (or build-env supplied via env).
 # Each target is a thin wrapper around the recipe in recipes/.
 #

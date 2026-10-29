@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # build-kernel.sh — fetch a kernel.org tarball, apply vendored patch
 # lanes, seed the canonical .config, and either refresh configs/ or
 # produce linux-image / linux-headers / linux-libc-dev .deb files via

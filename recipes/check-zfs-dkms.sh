@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # Rebuild the generated DKMS package against this build's kernel. No install/load.
 set -euo pipefail
 : "${KERNEL_VERSION:?KERNEL_VERSION required}"
