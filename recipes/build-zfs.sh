@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # build-zfs.sh — fetch an OpenZFS source release and produce
 # openzfs-zfs-dkms + userspace .deb files with OpenZFS' own Debian
 # packaging (contrib/debian), so every package declares its real

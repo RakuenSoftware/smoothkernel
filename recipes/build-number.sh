@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
 # build-number.sh — print the build number for this checkout: the number of
 # commits reachable from HEAD.
 #
