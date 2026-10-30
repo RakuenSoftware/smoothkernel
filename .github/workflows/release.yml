@@ -11,7 +11,8 @@ name: Release
 #   - pull_request to main: builds the same .deb set and uploads
 #     per-architecture workflow artifacts for review/testing.
 #   - tag push v*.*.*: publishes a stable release at that tag.
-#   - workflow_dispatch: manual run for ad-hoc rebuilds.
+#   - workflow_dispatch: manual run for ad-hoc rebuilds, and how the Follow
+#     stable workflow releases the kernel.org point release it commits.
 #
 # Every published .deb gets a GitHub build-provenance attestation, recorded in
 # the public Sigstore transparency log. It ties the package's digest to this

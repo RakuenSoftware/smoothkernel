@@ -1,8 +1,22 @@
 # Bumping the kernel pin
 
-The procedure when moving `linux-smoothkernel` to a newer kernel version. Applies to both major bumps (`6.x → 7.x`) and point bumps (`6.18.22 → 6.18.30`).
+The procedure when moving `linux-smoothkernel` to a new kernel series (`7.2 → 7.3`, `6.x → 7.x`). Point releases within a series (`7.2.10 → 7.2.14`) are automatic; see below.
 
 One kernel line across all four flavors, so one bump is a single coordinated edit — no per-flavor version skew.
+
+## Point releases are automatic
+
+A point release of the series SmoothKernel builds (`7.2.10 → 7.2.14`) needs no
+one. The Follow stable workflow (`.github/workflows/follow-stable.yml`) checks
+kernel.org every hour, commits the new `KERNEL_VERSION` to main and starts the
+Release workflow. smoothapt ingests the release within the hour, and every
+Smooth* system installs it through unattended-upgrades.
+The patch lanes and configs carry over: lanes keep the name of the release
+they were rebased on.
+
+If a point release breaks a lane, that release's build fails and nothing is
+published; fix the lane on main and the next build releases it. The steps
+below are for a new series (`7.2 → 7.3`), which the workflow only reports.
 
 ## When to bump
 

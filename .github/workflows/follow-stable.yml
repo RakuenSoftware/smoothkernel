@@ -1,0 +1,54 @@
+name: Follow stable
+
+# Kernel.org point releases carry the urgent fixes, so SmoothKernel takes each
+# one of its series as soon as it is published, with no manual step: every
+# hour this checks kernel.org (scripts/follow-stable.sh), commits the new
+# KERNEL_VERSION to main and starts the Release workflow on it. That run builds
+# and attests the packages like any other commit to main; smoothapt ingests
+# the release and every Smooth* system installs it through unattended-upgrades.
+#
+# A new series (7.2 -> 7.3) is only reported here: it needs the manual work in
+# docs/bumping-kernel.md.
+#
+# Commits made with the workflow token do not start other workflows, which is
+# why the release is started explicitly (workflow_dispatch is the exception).
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # push the bump to main
+  actions: write    # start the Release workflow
+
+concurrency:
+  group: follow-stable
+  cancel-in-progress: false
+
+jobs:
+  follow:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check kernel.org
+        id: bump
+        run: scripts/follow-stable.sh
+
+      - name: Commit and release
+        if: steps.bump.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "Update Linux to ${VERSION}" \
+            -m "Newest ${VERSION%.*} point release on kernel.org: https://cdn.kernel.org/pub/linux/kernel/v${VERSION%%.*}.x/ChangeLog-${VERSION}"
+          # Fails if main moved since the checkout; the next run retries.
+          git push origin HEAD:main
+          gh workflow run release.yml --ref main
+          echo "::notice title=SmoothKernel updated::Linux ${VERSION}; Release workflow started on main."
