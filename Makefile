@@ -24,7 +24,7 @@ NOBARA_PATCHSET ?= nobara-picks
 POST_NOBARA_PATCHSET ?= post-nobara-$(KERNEL_VERSION)
 OUT_DIR ?= $(CURDIR)/out
 
-.PHONY: help kernel kernel-all kernel-config-update kernel-config-update-all check-rocm-config check-router-config check-zfs-dkms zfs clean show
+.PHONY: help kernel kernel-all kernel-config-update kernel-config-update-all check-rocm-config check-router-config check-zfs-dkms check-headers-dkms-order zfs clean show
 
 help:
 	@echo "smoothkernel — Smooth* shared kernel build harness"
@@ -38,6 +38,7 @@ help:
 	@echo "  check-router-config  Assert every arch keeps the SmoothRouter netfilter/PPPoE symbols"
 	@echo "  zfs       Build OpenZFS .debs (zfs-dkms + libs + utils)"
 	@echo "  check-zfs-dkms  Rebuild packaged ZFS against the built kernel (native)"
+	@echo "  check-headers-dkms-order  Install image before headers; headers must build ZFS (docker)"
 	@echo "  clean     Remove build trees + out/"
 	@echo "  show      Print the resolved build environment"
 	@echo ""
@@ -98,6 +99,9 @@ check-router-config:
 
 check-zfs-dkms:
 	@$(CURDIR)/recipes/check-zfs-dkms.sh
+
+check-headers-dkms-order:
+	@$(CURDIR)/recipes/check-headers-dkms-order.sh
 
 zfs:
 	@$(CURDIR)/recipes/build-zfs.sh

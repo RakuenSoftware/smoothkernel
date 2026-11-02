@@ -172,9 +172,48 @@ add_headers_virtual_provides() {
         sed -i "/^Version: /a Provides: ${provides}" "$control"
     fi
 
+    add_headers_postinst "$tmp"
+
     dpkg-deb -b "$tmp" "${deb}.patched" >/dev/null
     mv "${deb}.patched" "$deb"
     rm -rf "$tmp"
+}
+
+# bindeb-pkg's headers package has no maintainer scripts. The image's postinst
+# runs /etc/kernel/postinst.d/dkms, which skips a kernel whose headers aren't
+# configured yet, and apt is free to configure the image first. Debian's
+# headers packages rerun /etc/kernel/header_postinst.d (DKMS's hook) when they
+# are configured; without that, nothing ever builds DKMS modules for the new
+# kernel. A SmoothNAS box upgraded that way booted 7.2.14-83 without ZFS.
+add_headers_postinst() {
+    local root="$1"
+    local package krel postinst
+
+    package="$(sed -n 's/^Package: //p' "$root/DEBIAN/control" | head -1)"
+    krel="${package#linux-headers-}"
+    if [[ -z "$krel" || "$krel" == "$package" ]]; then
+        echo "ERROR: cannot derive the kernel release from headers package '$package'" >&2
+        exit 1
+    fi
+    postinst="$root/DEBIAN/postinst"
+    if [[ -e "$postinst" ]]; then
+        echo "ERROR: bindeb-pkg now ships a headers postinst; merge the DKMS hook into it" >&2
+        exit 1
+    fi
+    cat > "$postinst" <<EOF
+#!/bin/sh
+set -e
+
+# Added by SmoothKernel: build DKMS modules for ${krel} once its headers are
+# configured, as Debian's linux-headers packages do.
+[ "\$1" = configure ] || exit 0
+if [ -d /etc/kernel/header_postinst.d ]; then
+	DEB_MAINT_PARAMS="\$*" run-parts --report --exit-on-error --arg="${krel}" \\
+		/etc/kernel/header_postinst.d
+fi
+exit 0
+EOF
+    chmod 755 "$postinst"
 }
 
 # Lay out, under <root>, the boot-newest script, the /etc/kernel hooks that run

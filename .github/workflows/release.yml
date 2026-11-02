@@ -240,6 +240,12 @@ jobs:
       - name: Validate packaged ZFS DKMS against the built kernel
         run: sudo make ENV_FILE=examples/smooth.env check-zfs-dkms DEB_ARCH=${{ matrix.deb_arch }} BUILD_THREADS="$(nproc)"
 
+      # apt may configure linux-image before linux-headers; the image's DKMS
+      # hook then skips the kernel, and only the headers' postinst can build
+      # the modules. Install in that order and require ZFS to get built.
+      - name: Headers configured after the image still build ZFS
+        run: make check-headers-dkms-order DEB_ARCH=${{ matrix.deb_arch }}
+
       # Independent of the checks inside build-kernel.sh: this re-derives the
       # answer from the finished .deb, so a bug in the recipe's own verification
       # cannot wave a bad artifact through.
