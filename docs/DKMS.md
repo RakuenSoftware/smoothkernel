@@ -96,6 +96,21 @@ Flavor meta packages may expose stable dependencies, but DKMS ultimately uses:
 /lib/modules/$(uname -r)/build
 ```
 
+apt may configure `linux-image-*` before `linux-headers-*`. The image's
+postinst runs `/etc/kernel/postinst.d/dkms`, which skips a kernel whose headers
+aren't there yet, so the headers package's postinst reruns
+`/etc/kernel/header_postinst.d` (DKMS's hook) as Debian's headers packages do.
+`bindeb-pkg` ships no headers postinst; `recipes/build-kernel.sh` adds it, and
+`make check-headers-dkms-order` installs the packages in that order and
+requires ZFS to get built.
+
+The headers package also ships prebuilt host tools that every module build
+runs: `objtool` (x86) links libelf and `sign-file` links libcrypto.
+`bindeb-pkg` declares no Depends for them, so `build-kernel.sh` adds the
+libraries they link, and fails the build if one links a library it has no
+package mapping for. The `check-headers-dkms-order` container is deliberately
+minimal, so it fails if the headers package doesn't bring what it needs.
+
 ## Secure Boot
 
 DKMS-built modules are signed on the target machine by the
