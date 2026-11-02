@@ -173,6 +173,7 @@ add_headers_virtual_provides() {
     fi
 
     add_headers_postinst "$tmp"
+    add_headers_tool_depends "$tmp"
 
     dpkg-deb -b "$tmp" "${deb}.patched" >/dev/null
     mv "${deb}.patched" "$deb"
@@ -214,6 +215,60 @@ fi
 exit 0
 EOF
     chmod 755 "$postinst"
+}
+
+# The headers package ships prebuilt host tools that every out-of-tree module
+# build runs (objtool on x86 links libelf; sign-file links libcrypto), but
+# bindeb-pkg declares no Depends. On a system without libelf, DKMS can't build
+# a single module. Declare the libraries those tools link, and fail the build
+# if one links a library this map doesn't know, rather than ship a package
+# that installs but can't build.
+add_headers_tool_depends() {
+    local root="$1"
+    local control="$root/DEBIAN/control"
+    local -A pkg_for=(
+        [libelf.so.1]="libelf1t64 | libelf1"
+        [libcrypto.so.3]="libssl3t64 | libssl3"
+        [libz.so.1]="zlib1g"
+        [libzstd.so.1]="libzstd1"
+        [liblzma.so.5]="liblzma5"
+    )
+    local -A needed=()
+    local f lib unknown=""
+
+    while IFS= read -r -d '' f; do
+        [[ "$(head -c 4 "$f" 2>/dev/null | od -An -tx1 | tr -d ' \n')" == 7f454c46 ]] || continue
+        while read -r lib; do
+            case "$lib" in
+                libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|ld-linux*) ;;
+                *)
+                    if [[ -n "${pkg_for[$lib]:-}" ]]; then
+                        needed[$lib]=1
+                    else
+                        unknown+=" ${f#"$root"/} needs $lib;"
+                    fi
+                    ;;
+            esac
+        done < <(readelf -d "$f" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')
+    done < <(find "$root" -path "$root/DEBIAN" -prune -o -type f -perm -u+x -print0)
+
+    if [[ -n "$unknown" ]]; then
+        echo "ERROR: headers host tools link libraries with no package mapping:$unknown" >&2
+        echo "       add them to add_headers_tool_depends in recipes/build-kernel.sh" >&2
+        exit 1
+    fi
+    [[ ${#needed[@]} -gt 0 ]] || return 0
+
+    local depends="" l
+    for l in $(printf '%s\n' "${!needed[@]}" | sort); do
+        depends+="${depends:+, }${pkg_for[$l]}"
+    done
+    echo "    headers Depends: $depends"
+    if grep -q '^Depends:' "$control"; then
+        sed -i "s/^Depends: /Depends: ${depends}, /" "$control"
+    else
+        sed -i "/^Version: /a Depends: ${depends}" "$control"
+    fi
 }
 
 # Lay out, under <root>, the boot-newest script, the /etc/kernel hooks that run

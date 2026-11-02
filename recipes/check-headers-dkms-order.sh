@@ -30,24 +30,47 @@ docker run --rm -v "$OUT_DIR:/out:ro" -e KREL="$krel" \
     -e ZFS="/out/$(basename "${zfs[0]}")" \
     "$IMAGE" bash -euo pipefail -c '
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
 zfs_installed() { dkms status -k "$KREL" | grep -Eq "^zfs/.*: installed"; }
 
-echo "==> OpenZFS DKMS, before any SmoothKernel"
-apt-get install -y -qq "$ZFS" >/dev/null
+# Show why a step failed: its apt/dpkg output, DKMS state and build logs.
+diagnose() {
+    echo "---- output of: $1" >&2
+    cat /tmp/step.log >&2 || true
+    if command -v dkms >/dev/null; then
+        echo "---- dkms status" >&2
+        dkms status >&2 || true
+    fi
+    for log in /var/lib/dkms/*/*/build/make.log /var/lib/dkms/*/*/*/*/log/make.log; do
+        [ -f "$log" ] || continue
+        echo "---- $log (last 80 lines)" >&2
+        tail -n 80 "$log" >&2
+    done
+}
+# Run a step quietly; on failure print everything above, then fail.
+step() {
+    local what="$1"; shift
+    echo "==> $what"
+    if ! "$@" > /tmp/step.log 2>&1; then
+        diagnose "$what"
+        echo "FAILED: $what" >&2
+        exit 1
+    fi
+}
 
-echo "==> linux-image $KREL without its headers"
-apt-get install -y -qq --no-install-recommends "$IMG" >/dev/null
+step "apt-get update" apt-get update
+step "OpenZFS DKMS, before any SmoothKernel" apt-get install -y "$ZFS"
+step "linux-image $KREL without its headers" apt-get install -y --no-install-recommends "$IMG"
 if zfs_installed || [ -n "$(find "/lib/modules/$KREL" -name "zfs.ko*")" ]; then
     echo "ZFS was built before the headers were installed; this check proves nothing" >&2
     exit 1
 fi
 
-echo "==> linux-headers $KREL"
-apt-get install -y -qq "$HDR" >/dev/null
+# The headers must bring the libraries their host tools need (objtool links
+# libelf), so the container stays minimal on purpose.
+step "linux-headers $KREL" apt-get install -y "$HDR"
 if ! zfs_installed; then
-    dkms status >&2
-    find /var/lib/dkms -name make.log -exec tail -n 40 {} \; >&2
+    : > /tmp/step.log
+    diagnose "linux-headers $KREL"
     echo "configuring linux-headers-$KREL did not build ZFS for it" >&2
     exit 1
 fi
